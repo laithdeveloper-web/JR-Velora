@@ -801,10 +801,11 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
     window.addEventListener(ev, mark, {passive:true, capture:true});
   });
   window.addEventListener('scroll', function(){
+    if(!window.__introDone) return; /* قبل نهاية الانترو أي تمرير هو استعادة من المتصفح وليس من المستخدم */
     if((window.scrollY||document.documentElement.scrollTop||0) > 2) mark();
   }, {passive:true});
   window.__safeTop = function(){
-    if(window.__userScrolled) return;
+    if(window.__introDone && window.__userScrolled) return;
     try{ window.scrollTo(0,0); }catch(e){}
     document.documentElement.scrollTop=0; document.body.scrollTop=0;
   };
@@ -830,7 +831,14 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
     document.body.classList.remove('introing');
     document.documentElement.classList.remove('introing');
     if(el){ el.classList.add('done'); setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); },700); }
+    window.__userScrolled = false;
+    try{ window.scrollTo(0,0); }catch(e){}
+    document.documentElement.scrollTop=0; document.body.scrollTop=0;
     window.__safeTop();
+    setTimeout(function(){
+      try{ window.scrollTo(0,0); }catch(e){}
+      document.documentElement.scrollTop=0; document.body.scrollTop=0;
+    },300);
   }
   window.__killIntro = killIntro;
   setTimeout(killIntro, MAX);
@@ -1789,7 +1797,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     requestAnimationFrame(tick);
   }
   function jump(){
-    if(window.__userScrolled) return;
+    if(window.__introDone && window.__userScrolled) return;
     try{ window.scrollTo({top:0,left:0,behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
     document.documentElement.scrollTop=0; document.body.scrollTop=0;
   }
@@ -1797,6 +1805,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     if(hidden) return; hidden=true; set(100);
     setTimeout(function(){
       el.classList.add('done');
+      window.__userScrolled = false; /* تصفير أي تمرير وهمي حدث أثناء الانترو */
       jump();
       document.body.classList.remove('introing');
       jump();
