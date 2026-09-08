@@ -365,6 +365,10 @@ footer a:hover{color:var(--gold-l)}
 .drawer{position:fixed;top:0;inset-inline-end:0;height:100%;width:min(430px,100%);background:var(--ivory);z-index:960;display:flex;flex-direction:column;transform:translateX(-110%);transition:transform .35s cubic-bezier(.2,.8,.2,1);will-change:transform;box-shadow:var(--shadow)}
 html[dir="rtl"] .drawer{transform:translateX(-110%)}
 .drawer.open{transform:none}
+/* إصلاح جذري: قواعد الاتجاه (rtl/ltr) كانت أقوى من قاعدة الفتح فتبقي السلة خارج الشاشة */
+html[dir="rtl"] .drawer.open,
+html[dir="ltr"] .drawer.open,
+html .drawer.open{transform:translate3d(0,0,0)}
 .dhead{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--line)}
 .dhead h3{margin:0}
 .dhead-actions{display:flex;align-items:center;gap:8px}
@@ -398,7 +402,8 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
 .row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted);font-size:.95rem}
 .row.total{color:var(--ink);font-weight:800;font-size:1.15rem;border-top:1px dashed var(--line);margin-top:8px;padding-top:10px}
 .coupon{display:flex;gap:8px;margin:10px 0}
-.coupon input{flex:1;border:1px solid var(--line);border-radius:999px;padding:10px 14px;font-family:inherit;outline:0;background:var(--ivory)}
+.coupon input{flex:1 1 auto;min-width:0;border:1px solid var(--line);border-radius:999px;padding:10px 14px;font-family:inherit;outline:0;background:var(--ivory)}
+.coupon>.btn{flex:0 0 auto;white-space:nowrap}
 .modal{position:fixed;inset:0;z-index:970;display:grid;place-items:center;padding:16px;opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
 .modal.open{opacity:1;visibility:visible}
 .sheet{background:var(--ivory);border-radius:22px;width:min(520px,100%);max-height:90vh;overflow:auto;padding:24px;box-shadow:var(--shadow);transform:translateY(16px);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
@@ -457,6 +462,8 @@ html[dir="rtl"] .drawer{transform:translateX(-110%)}
 .phone-wrap input:focus{border:0;box-shadow:none}
 .phone-prefix{display:flex;align-items:center;gap:7px;font-weight:700;color:inherit;border-inline-end:1px solid var(--line);padding-inline-end:10px;user-select:none}
 .phone-prefix svg{width:26px;height:17px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.08);flex:none}
+.phone-prefix select{border:0;outline:0;background:transparent;font-family:inherit;font-weight:700;font-size:.95rem;color:inherit;cursor:pointer;max-width:110px;padding:12px 0;direction:ltr}
+.phone-prefix select:focus{box-shadow:none}
 .phone-hint{font-size:.78rem;color:#8a8a7a;margin-top:6px}
 .phone-err{font-size:.84rem;color:#c0392b;margin-top:6px;font-weight:700}
 .phone-wrap.invalid{border-color:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.12)}
@@ -1247,16 +1254,15 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
     <form id="orderForm">
       <div class="field"><label>الاسم الكامل *</label><input name="name" required placeholder="مثال: سارة أحمد"></div>
       <div class="field">
-        <label for="phoneInput">رقم الهاتف (أردني) *</label>
+        <label for="phoneInput">رقم الهاتف *</label>
         <div class="phone-wrap" id="phoneWrap">
-          <span class="phone-prefix" aria-hidden="true">
-            <svg viewBox="0 0 30 20"><rect width="30" height="6.7" fill="#000"/><rect y="6.7" width="30" height="6.6" fill="#fff"/><rect y="13.3" width="30" height="6.7" fill="#007a3d"/><polygon points="0,0 12,10 0,20" fill="#ce1126"/><polygon points="3.2,8.6 3.9,10.6 5.9,10.6 4.4,11.8 5,13.9 3.2,12.7 1.5,13.9 2.1,11.8 0.6,10.6 2.6,10.6" fill="#fff"/></svg>
-            <b>+962</b>
+          <span class="phone-prefix">
+            <select id="countrySelect" aria-label="الدولة / Country"></select>
           </span>
-          <input id="phoneInput" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="7X XXX XXXX" required>
+          <input id="phoneInput" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="19" placeholder="7X XXX XXXX" required>
           <span class="phone-check" aria-hidden="true">✓</span>
         </div>
-        <div class="phone-hint">رقم أردني من 9 خانات يبدأ بـ 7 — مثال: 79 123 4567</div>
+        <div class="phone-hint" id="phoneHint">رقم أردني من 9 خانات يبدأ بـ 7 — مثال: 79 123 4567</div>
         <div class="phone-err" id="phoneErr" hidden></div>
       </div>
       <div class="field"><label>المدينة *</label><input name="city" required placeholder="عمّان"></div>
@@ -1607,9 +1613,10 @@ function toast(msg){
 function placeOrder(e){
   e.preventDefault();
   const f = new FormData(e.target);
-  const phone = normalizeJoPhone(f.get("phone"));
+  const ctry = currentCountry();
+  const phone = normalizePhone(ctry, f.get("phone"));
   if(!phone){
-    showPhoneError("رقم الهاتف غير صحيح — أدخلي 9 خانات تبدأ بـ 7 (مثال: 791234567)");
+    showPhoneError(phoneErrorText(ctry, currentLang()));
     return;
   }
   clearPhoneError();
@@ -1660,17 +1667,74 @@ $("#checkoutBtn").onclick = openCheckout;
 $("#applyCoupon").onclick = applyCoupon;
 $("#orderForm").addEventListener("submit", placeOrder);
 
-/* ===== التحقق الذكي من رقم الهاتف الأردني ===== */
-/* يعيد الرقم بالصيغة الدولية +962XXXXXXXXX أو null إن كان غير صالح */
-function normalizeJoPhone(raw){
+/* ===== التحقق الذكي من رقم الهاتف — كل الدول العربية (الافتراضي: الأردن) ===== */
+/* dial: مفتاح الاتصال الدولي | min/max: طول الرقم الوطني بدون الصفر البادئ */
+const AR_COUNTRIES = [
+  { code:"JO", dial:"962", flag:"🇯🇴", ar:"الأردن",            en:"Jordan",         min:9,  max:9,  re:/^7[789]\d{7}$/, ex:"79 123 4567" },
+  { code:"SA", dial:"966", flag:"🇸🇦", ar:"السعودية",          en:"Saudi Arabia",   min:9,  max:9,  re:/^5\d{8}$/,      ex:"5X XXX XXXX" },
+  { code:"AE", dial:"971", flag:"🇦🇪", ar:"الإمارات",           en:"UAE",            min:9,  max:9,  re:/^5\d{8}$/,      ex:"5X XXX XXXX" },
+  { code:"KW", dial:"965", flag:"🇰🇼", ar:"الكويت",            en:"Kuwait",         min:8,  max:8,  re:/^[569]\d{7}$/,  ex:"XXXX XXXX" },
+  { code:"QA", dial:"974", flag:"🇶🇦", ar:"قطر",               en:"Qatar",          min:8,  max:8,  re:/^[357]\d{7}$/,  ex:"XXXX XXXX" },
+  { code:"BH", dial:"973", flag:"🇧🇭", ar:"البحرين",           en:"Bahrain",        min:8,  max:8,  re:/^[36]\d{7}$/,   ex:"XXXX XXXX" },
+  { code:"OM", dial:"968", flag:"🇴🇲", ar:"عُمان",             en:"Oman",           min:8,  max:8,  re:/^[79]\d{7}$/,   ex:"XXXX XXXX" },
+  { code:"IQ", dial:"964", flag:"🇮🇶", ar:"العراق",            en:"Iraq",           min:10, max:10, re:/^7\d{9}$/,      ex:"7XX XXX XXXX" },
+  { code:"PS", dial:"970", flag:"🇵🇸", ar:"فلسطين",           en:"Palestine",      min:9,  max:9,  re:/^5\d{8}$/,      ex:"5X XXX XXXX" },
+  { code:"LB", dial:"961", flag:"🇱🇧", ar:"لبنان",             en:"Lebanon",        min:7,  max:8,  re:/^\d{7,8}$/,     ex:"XX XXX XXX" },
+  { code:"SY", dial:"963", flag:"🇸🇾", ar:"سوريا",             en:"Syria",          min:9,  max:9,  re:/^9\d{8}$/,      ex:"9XX XXX XXX" },
+  { code:"EG", dial:"20",  flag:"🇪🇬", ar:"مصر",               en:"Egypt",          min:10, max:10, re:/^1\d{9}$/,      ex:"1X XXXX XXXX" },
+  { code:"YE", dial:"967", flag:"🇾🇪", ar:"اليمن",             en:"Yemen",          min:9,  max:9,  re:/^7\d{8}$/,      ex:"7XX XXX XXX" },
+  { code:"LY", dial:"218", flag:"🇱🇾", ar:"ليبيا",             en:"Libya",          min:9,  max:10, re:/^9\d{8,9}$/,    ex:"9X XXX XXXX" },
+  { code:"SD", dial:"249", flag:"🇸🇩", ar:"السودان",           en:"Sudan",          min:9,  max:9,  re:/^9\d{8}$/,      ex:"9X XXX XXXX" },
+  { code:"MA", dial:"212", flag:"🇲🇦", ar:"المغرب",            en:"Morocco",        min:9,  max:9,  re:/^[67]\d{8}$/,   ex:"6XX XXX XXX" },
+  { code:"DZ", dial:"213", flag:"🇩🇿", ar:"الجزائر",           en:"Algeria",        min:9,  max:9,  re:/^[567]\d{8}$/,  ex:"5XX XXX XXX" },
+  { code:"TN", dial:"216", flag:"🇹🇳", ar:"تونس",              en:"Tunisia",        min:8,  max:8,  re:/^[259]\d{7}$/,  ex:"XX XXX XXX" },
+  { code:"MR", dial:"222", flag:"🇲🇷", ar:"موريتانيا",         en:"Mauritania",     min:8,  max:8,  re:/^\d{8}$/,       ex:"XX XX XX XX" },
+  { code:"DJ", dial:"253", flag:"🇩🇯", ar:"جيبوتي",            en:"Djibouti",       min:8,  max:8,  re:/^\d{8}$/,       ex:"XX XX XX XX" },
+  { code:"SO", dial:"252", flag:"🇸🇴", ar:"الصومال",           en:"Somalia",        min:7,  max:9,  re:/^\d{7,9}$/,     ex:"XX XXX XXX" },
+  { code:"KM", dial:"269", flag:"🇰🇲", ar:"جزر القمر",         en:"Comoros",        min:7,  max:7,  re:/^\d{7}$/,       ex:"XXX XX XX" },
+];
+const phoneWrap = $("#phoneWrap"), phoneInput = $("#phoneInput"), phoneErr = $("#phoneErr"),
+      phoneHint = $("#phoneHint"), countrySelect = $("#countrySelect");
+function currentLang(){ return document.documentElement.getAttribute("lang") === "en" ? "en" : "ar"; }
+function currentCountry(){ return AR_COUNTRIES.find(c => c.code === countrySelect.value) || AR_COUNTRIES[0]; }
+/* تعبئة قائمة الدول (الأردن أولًا وهو الافتراضي) */
+AR_COUNTRIES.forEach(c => {
+  const o = document.createElement("option");
+  o.value = c.code;
+  o.textContent = `${c.flag} +${c.dial}`;
+  countrySelect.appendChild(o);
+});
+countrySelect.value = "JO";
+/* يعيد الرقم بالصيغة الدولية +<dial>XXXX أو null إن كان غير صالح */
+function normalizePhone(country, raw){
   if(raw == null) return null;
-  let d = String(raw).replace(/\D/g, "");          // أرقام فقط
-  if(d.startsWith("00962")) d = d.slice(5);          // 00962XXXXXXXXX
-  else if(d.startsWith("962")) d = d.slice(3);       // +962XXXXXXXXX
-  if(d.startsWith("0")) d = d.slice(1);              // 07XXXXXXXX
-  return /^7[789]\d{7}$/.test(d) ? "+962" + d : null; // جوال أردني: 77/78/79 + 7 خانات
+  let d = String(raw).replace(/\D/g, "");                 // أرقام فقط
+  if(d.startsWith("00" + country.dial)) d = d.slice(country.dial.length + 2);
+  else if(d.startsWith(country.dial) && d.length > country.max) d = d.slice(country.dial.length);
+  if(d.startsWith("0")) d = d.slice(1);                   // تجاهل الصفر البادئ
+  if(d.length < country.min || d.length > country.max) return null;
+  if(country.re && !country.re.test(d)) return null;
+  return "+" + country.dial + d;
 }
-const phoneWrap = $("#phoneWrap"), phoneInput = $("#phoneInput"), phoneErr = $("#phoneErr");
+function phoneHintText(c, lang){
+  return lang === "en"
+    ? `${c.en} number: ${c.min === c.max ? c.min : c.min + "–" + c.max} digits — e.g. ${c.ex}`
+    : `رقم ${c.ar}: ${c.min === c.max ? c.min : c.min + "–" + c.max} خانات — مثال: ${c.ex}`;
+}
+function phoneErrorText(c, lang){
+  return lang === "en"
+    ? `Invalid ${c.en} number — enter ${c.min === c.max ? c.min : c.min + "–" + c.max} digits (e.g. ${c.ex.replace(/\s/g,"")})`
+    : `رقم الهاتف غير صحيح — أدخلي ${c.min === c.max ? c.min : c.min + "–" + c.max} خانات (مثال: ${c.ex.replace(/\s/g,"")})`;
+}
+function updatePhoneUI(){
+  const c = currentCountry();
+  phoneHint.textContent = phoneHintText(c, currentLang());
+  phoneInput.placeholder = c.ex.replace(/\d/g, "X");
+  phoneInput.maxLength = c.max + Math.ceil(c.max / 3);
+  clearPhoneError();
+  const d = phoneInput.value.replace(/\D/g, "");
+  phoneWrap.classList.toggle("valid", !!d && !!normalizePhone(c, d));
+}
 function showPhoneError(msg){
   phoneErr.textContent = msg; phoneErr.hidden = false;
   phoneWrap.classList.add("invalid","shake"); phoneWrap.classList.remove("valid");
@@ -1680,28 +1744,34 @@ function showPhoneError(msg){
 function clearPhoneError(){
   phoneErr.hidden = true; phoneWrap.classList.remove("invalid");
 }
-/* تصفية مباشرة: أرقام فقط، حد أقصى 9 خانات، تنسيق 3-3-3 أثناء الكتابة */
+countrySelect.addEventListener("change", updatePhoneUI);
+document.addEventListener("jr:langchange", updatePhoneUI);
+updatePhoneUI();
+/* تصفية مباشرة: أرقام فقط، حد أقصى حسب الدولة، تنسيق 3-3-3 أثناء الكتابة */
 phoneInput.addEventListener("input", () => {
+  const c = currentCountry();
   let d = phoneInput.value.replace(/\D/g, "");
   if(d.startsWith("0")) d = d.slice(1);              // تجاهل الصفر البادئ تلقائيًا
-  d = d.slice(0, 9);
+  d = d.slice(0, c.max);
   phoneInput.value = d.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
   if(d.length === 0){ phoneWrap.classList.remove("invalid","valid"); phoneErr.hidden = true; return; }
-  if(normalizeJoPhone(d)){ phoneWrap.classList.add("valid"); clearPhoneError(); }
+  if(normalizePhone(c, d)){ phoneWrap.classList.add("valid"); clearPhoneError(); }
   else { phoneWrap.classList.remove("valid"); }
 });
 /* منع اللصق غير الرقمي والتحقق عند المغادرة */
 phoneInput.addEventListener("paste", ev => {
   ev.preventDefault();
+  const c = currentCountry();
   const t = (ev.clipboardData || window.clipboardData).getData("text") || "";
-  const norm = normalizeJoPhone(t);
-  const d = (norm ? norm.slice(4) : t.replace(/\D/g,"").replace(/^0/,"")).slice(0,9);
+  const norm = normalizePhone(c, t);
+  const d = (norm ? norm.slice(c.dial.length + 1) : t.replace(/\D/g,"").replace(/^0/,"")).slice(0, c.max);
   phoneInput.value = d.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
   phoneInput.dispatchEvent(new Event("input"));
 });
 phoneInput.addEventListener("blur", () => {
+  const c = currentCountry();
   const d = phoneInput.value.replace(/\D/g, "");
-  if(d && !normalizeJoPhone(d)) showPhoneError("أكملي الرقم: 9 خانات تبدأ بـ 7 (77 / 78 / 79)");
+  if(d && !normalizePhone(c, d)) showPhoneError(phoneErrorText(c, currentLang()));
 });
 
 /* ====== تحديد الموقع على الخريطة (بدون مغادرة الموقع) ====== */
@@ -1881,19 +1951,18 @@ document.querySelectorAll("#links a").forEach(a => a.onclick = () => $("#links")
   /* حلقة واحدة دائمة تعتمد على الوقت الفعلي — لا يمكن أن "تضيع" */
   function tick(){
     rafId = null;
+    if(window.__jrScrolling){ rafId = setTimeout(tick, 200); return; }
     if(!document.hidden && !hovering && (now() - last) >= INTERVAL){
       go(i + 1);
     }
     schedule();
   }
 
+  /* مؤقّت خفيف بدل حلقة rAF دائمة — يوفّر المعالج تمامًا أثناء التمرير */
   function schedule(){
     if(rafId !== null) return;
-    if(typeof requestAnimationFrame === 'function'){
-      rafId = requestAnimationFrame(tick);
-    } else {
-      rafId = setTimeout(tick, 250);
-    }
+    var wait = Math.max(80, INTERVAL - (now() - last));
+    rafId = setTimeout(tick, wait);
   }
 
   /* إعادة التشغيل الفورية في كل الحالات التي كانت توقف السلايدر سابقًا */
@@ -1928,7 +1997,7 @@ document.querySelectorAll("#links a").forEach(a => a.onclick = () => $("#links")
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) resume(); });
   window.addEventListener('pageshow', resume);
   window.addEventListener('focus', resume);
-  window.addEventListener('scroll', function(){ if(hovering && !fine) hovering = false; schedule(); }, {passive:true});
+  /* لا نربط السلايدر بحدث التمرير — يبقى بمؤقّته الخاص بلا أي تكلفة أثناء التمرير */
   window.addEventListener('hashchange', resume);
   document.addEventListener('pointerup', function(){ schedule(); }, {passive:true});
 
@@ -1993,25 +2062,63 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   var bar=document.getElementById('scrollProgress');
   var heroArt=document.querySelector('.hero img, .hero .art');
   var ticking=false;
+
+  /* --- ذاكرة مؤقتة للقياسات: لا نقرأ التخطيط أثناء التمرير إطلاقًا --- */
+  var SECS=[], LINKS=[], docH=1, vh=1, measured=false, lastCur=null, lastScrolled=null, lastBar=-1;
+  var coarse = !!(window.matchMedia && window.matchMedia('(hover:none)').matches);
+
+  function measure(){
+    SECS=[];
+    var nodes=document.querySelectorAll('section[id]');
+    for(var i=0;i<nodes.length;i++){
+      SECS.push({ id:nodes[i].id, top:nodes[i].getBoundingClientRect().top + (window.pageYOffset||0) });
+    }
+    LINKS=[];
+    var as=document.querySelectorAll('#links a');
+    for(var j=0;j<as.length;j++){ LINKS.push({ el:as[j], hash:as[j].getAttribute('href')||'' }); }
+    vh = window.innerHeight || 1;
+    docH = Math.max(1,(document.documentElement.scrollHeight - vh));
+    measured=true;
+  }
+  var remT=null;
+  function remeasure(){ clearTimeout(remT); remT=setTimeout(function(){ measure(); frame(); }, 120); }
+
   function frame(){
     ticking=false;
-    var y=window.scrollY||document.documentElement.scrollTop;
-    var h=(document.documentElement.scrollHeight-window.innerHeight)||1;
-    if(bar) bar.style.transform='scaleX('+Math.min(1,Math.max(0,y/h))+')';
-    document.body.classList.toggle('scrolled', y>24);
-    if(!reduce && heroArt && y<window.innerHeight*1.2){
+    if(!measured) measure();
+    var y=window.pageYOffset||document.documentElement.scrollTop||0;
+
+    /* شريط التقدّم: تحويل فقط (لا يسبب إعادة تخطيط) */
+    if(bar){
+      var pr=Math.min(1,Math.max(0,y/docH));
+      if(Math.abs(pr-lastBar)>0.002){ lastBar=pr; bar.style.transform='scaleX('+pr.toFixed(4)+')'; }
+    }
+
+    var sc = y>24;
+    if(sc!==lastScrolled){ lastScrolled=sc; document.body.classList.toggle('scrolled', sc); }
+
+    /* البارالاكس مُعطّل على الموبايل (أغلى تأثير أثناء التمرير) */
+    if(!reduce && !coarse && heroArt && y<vh*1.2){
       heroArt.style.transform='translate3d(0,'+(y*0.14).toFixed(1)+'px,0)';
     }
+
+    /* القسم النشط من القياسات المخزَّنة — بدون أي قراءة للتخطيط */
     var pos=y+140, cur=null;
-    document.querySelectorAll('section[id]').forEach(function(s){ if(s.offsetTop<=pos) cur=s.id; });
-    document.querySelectorAll('#links a').forEach(function(a){
-      a.classList.toggle('active', cur && a.getAttribute('href')==='#'+cur);
-    });
+    for(var i=0;i<SECS.length;i++){ if(SECS[i].top<=pos) cur=SECS[i].id; }
+    if(cur!==lastCur){
+      lastCur=cur;
+      for(var k=0;k<LINKS.length;k++){
+        LINKS[k].el.classList.toggle('active', !!cur && LINKS[k].hash==='#'+cur);
+      }
+    }
   }
   function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(frame); } }
   window.addEventListener('scroll',onScroll,{passive:true});
-  window.addEventListener('resize',onScroll,{passive:true});
-  frame();
+  window.addEventListener('resize',function(){ remeasure(); onScroll(); },{passive:true});
+  window.addEventListener('orientationchange',remeasure,{passive:true});
+  window.addEventListener('load',remeasure);
+  window.__jrRemeasure = remeasure;
+  measure(); frame();
 })();
 
 /* ===== شاشة الانترو: شريط أبيض يمتلئ بالأخضر + لوجو يدور ===== */
@@ -2411,7 +2518,11 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   /* --- 9) تقليل تكلفة الأنيميشن على الشاشات الصغيرة --- */
   if(isMobile()){
     document.querySelectorAll(".card, .tile, .rev, .ct").forEach(function(el){
-      el.style.contentVisibility = "auto";
+      var h = el.offsetHeight;
+      if(h > 40){
+        el.style.containIntrinsicSize = "auto " + h + "px";   /* يمنع قفزات الارتفاع */
+        el.style.contentVisibility = "auto";
+      }
     });
   }
 })();
@@ -2618,74 +2729,70 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   /* حركة وصول أنيقة للقسم الهدف */
   function arrive(el){
     if(!el || reduce()) return;
-    el.classList.remove("jr-arrive");
-    void el.offsetWidth;
-    el.classList.add("jr-arrive");
+    /* نكشف محتوى القسم فورًا بدون أي حركة إضافية على العنصر الكبير نفسه
+       (تحريك قسم كامل أثناء التمرير كان أثقل سبب للتقطيع) */
     try{
       var kids = el.querySelectorAll(".jr-rv:not(.jr-in)");
-      Array.prototype.forEach.call(kids, function(k, i){
-        k.style.transitionDelay = Math.min(i * 45, 220) + "ms";
-        k.classList.add("jr-in");
-      });
+      for(var i = 0; i < kids.length; i++){
+        kids[i].style.transitionDelay = Math.min(i * 40, 200) + "ms";
+        kids[i].classList.add("jr-in");
+      }
     }catch(e){}
-    clearTimeout(el.__jrArriveT);
-    el.__jrArriveT = setTimeout(function(){ el.classList.remove("jr-arrive"); }, 1100);
   }
 
-  /* محرك تمرير بنابض مُخمَّد بالكامل:
-     - يتابع الهدف لحظيًا (حتى لو تغيّر الارتفاع أثناء الحركة)
-     - بلا أي قفزة تصحيح في النهاية => إحساس حريري متناغم */
-  function scrollToEl(el){
-    if(!el) return;
-    var id = ++animId;
-    root.classList.add("no-smooth");
-    var pos   = window.pageYOffset || root.scrollTop || 0;
-    var goal  = goalFor(el);
-    var dist  = Math.abs(goal - pos);
+  /* ===== محرّك تمرير احترافي =====
+     نستخدم التمرير الأصلي للمتصفح (يعمل على خيط المُركِّب Compositor)
+     بدل تحريك الصفحة يدويًا بـ JavaScript في كل إطار — هذا يلغي
+     التقطيع تمامًا على الهواتف ويبقى قابلاً للمقاطعة بلمسة الإصبع. */
+  var NATIVE_SMOOTH = (function(){
+    try{ return 'scrollBehavior' in document.documentElement.style; }catch(e){ return false; }
+  })();
 
-    if(reduce() || dist < 2){
+  function scrollToY(goal, el){
+    var id = ++animId;
+    goal = Math.max(0, Math.round(goal));
+
+    if(reduce()){
+      root.classList.add("no-smooth");
       window.scrollTo(0, goal);
       root.classList.remove("no-smooth");
-      arrive(el);
+      if(el) arrive(el);
       return;
     }
 
-    /* صلابة النابض: أسرع للمسافات القصيرة، أهدأ وأكثر أناقة للطويلة */
-    var w = dist < 400 ? 15 : dist < 1600 ? 12 : 10;
-    var v = 0, last = performance.now(), f = 0, arrived = false, t0 = last;
-
-    function step(now){
-      if(id !== animId) return;
-      var dt = Math.min((now - last) / 1000, 1/30); last = now;
-      if((f++ % 2) === 0) goal = goalFor(el);
-
-      /* تكامل بخطوات صغيرة لثبات الحركة على كل معدلات التحديث */
-      var steps = Math.max(1, Math.ceil(dt / (1/120)));
-      var h = dt / steps;
-      for(var i = 0; i < steps; i++){
-        var a = w * w * (goal - pos) - 2 * w * v;
-        v += a * h;
-        pos += v * h;
-      }
-      window.scrollTo(0, pos);
-
-      var remain = Math.abs(goal - pos);
-      if(!arrived && (remain < dist * 0.34 || now - t0 > 380)){ arrived = true; arrive(el); }
-
-      if((remain > 0.4 || Math.abs(v) > 8) && now - t0 < 1800) requestAnimationFrame(step);
-      else {
-        window.scrollTo(0, goalFor(el));
-        if(!arrived) arrive(el);
-        root.classList.remove("no-smooth");
-      }
+    if(NATIVE_SMOOTH){
+      root.classList.remove("no-smooth");
+      try{ window.scrollTo({ top: goal, behavior: "smooth" }); }
+      catch(e){ window.scrollTo(0, goal); }
+      if(el) setTimeout(function(){ if(id === animId) arrive(el); }, 260);
+      return;
     }
-    requestAnimationFrame(step);
+
+    /* بديل خفيف للمتصفحات القديمة فقط */
+    var from = window.pageYOffset || root.scrollTop || 0;
+    var d = goal - from, t0 = performance.now();
+    var dur = Math.min(900, Math.max(320, Math.abs(d) * 0.5));
+    root.classList.add("no-smooth");
+    (function step(now){
+      if(id !== animId) return;
+      var p = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 3);
+      window.scrollTo(0, from + d * e);
+      if(p < 1) requestAnimationFrame(step);
+      else { root.classList.remove("no-smooth"); if(el) arrive(el); }
+    })(t0);
   }
+
+  function scrollToEl(el){
+    if(!el) return;
+    scrollToY(goalFor(el), el);
+  }
+  window.JRScrollToY = scrollToY;
   window.JRScrollTo = scrollToEl;
 
   /* إلغاء الحركة إذا تدخّل المستخدم */
-  ["wheel","touchstart","touchmove","keydown"].forEach(function(ev){
-    window.addEventListener(ev, function(){ if(animId){ animId++; root.classList.remove("no-smooth"); } }, {passive:true});
+  ["wheel","touchstart","keydown"].forEach(function(ev){
+    window.addEventListener(ev, function(){ if(animId){ animId++; } }, {passive:true});
   });
 
   /* تأثير لمسة (ripple) فوري على رابط القسم ليشعر المستخدم بالاستجابة بلا أي تأخير */
@@ -2771,10 +2878,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
       e.preventDefault();
       ripple(a, e);
       closeMenu();
-      animId++;
-      root.classList.add("no-smooth");
-      window.scrollTo(0, 0);
-      requestAnimationFrame(function(){ root.classList.remove("no-smooth"); });
+      requestAnimationFrame(function(){ scrollToY(0, null); });
       return;
     }
     var el = targetFromHash(hash);
@@ -3077,10 +3181,8 @@ body.jr-swapping{filter:blur(7px) saturate(.9);transition:filter .38s ease}
     /* إتمام الطلب */
     "الاسم الكامل *":"Full name *",
     "مثال: سارة أحمد":"e.g. Sara Ahmad",
-    "رقم الهاتف (أردني) *":"Phone number (Jordan) *",
-    "رقم أردني من 9 خانات يبدأ بـ 7 — مثال: 79 123 4567":"A 9-digit Jordanian number starting with 7 — e.g. 79 123 4567",
-    "رقم الهاتف غير صحيح — أدخلي 9 خانات تبدأ بـ 7 (مثال: 791234567)":"Invalid phone number — enter 9 digits starting with 7 (e.g. 791234567)",
-    "أكملي الرقم: 9 خانات تبدأ بـ 7 (77 / 78 / 79)":"Complete the number: 9 digits starting with 7 (77 / 78 / 79)",
+    "رقم الهاتف *":"Phone number *",
+    "الدولة / Country":"Country",
     "المدينة *":"City *",
     "عمّان":"Amman",
     "موقع التوصيل *":"Delivery location *",
@@ -3416,5 +3518,71 @@ body.jr-swapping{filter:blur(7px) saturate(.9);transition:filter .38s ease}
 })();
 </script>
 
+
+<!-- ================= JR MOTION / PERFORMANCE LAYER (v16) ================= -->
+<style id="jr-perf-css">
+/* 1) هوامش تمرير صحيحة للأقسام حتى لا يغطيها الهيدر الثابت */
+section[id],main [id],footer[id]{scroll-margin-top:calc(var(--hdr, 74px) + 10px)}
+
+/* 2) لا نُبقي will-change مفعّلًا طوال الوقت (كان يستهلك ذاكرة الرسوم ويسبب التقطيع) */
+.reveal,.hero-slide{will-change:auto}
+html.jr-rv-on .jr-rv{will-change:auto}
+.fly-to-cart{will-change:transform,opacity}
+
+/* 3) تمرير أنعم على iOS + منع سلاسل التمرير المكلفة */
+html{-webkit-text-size-adjust:100%}
+body{overscroll-behavior-y:none}
+.items,.chips,.rv-track,.track{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+/* 4) تخفيف حاد للتأثيرات الغالية على الشاشات اللمسية/الصغيرة */
+@media (max-width:900px), (hover:none){
+  /* الضبابية خلف الهيدر الثابت = أغلى تأثير أثناء التمرير على الهاتف */
+  header{background:rgba(250,246,236,.985);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .hero-promo,.rv-counter,.rv-nav,.rv-close,.rv-mute,.mapmodal{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .ov{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(38,38,31,.55)}
+  .mcart{backdrop-filter:none;-webkit-backdrop-filter:none}
+
+  /* لا مرشّحات blur في الحركات — الأثقل على معالج الرسوميات */
+  .reveal[data-reveal="blur"]{filter:none;transform:translate3d(0,20px,0)}
+  .reveal{transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .55s cubic-bezier(.22,.61,.36,1)}
+  .reveal[data-reveal="up"]{transform:translate3d(0,22px,0)}
+  .reveal[data-reveal="down"]{transform:translate3d(0,-18px,0)}
+  .reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,22px,0)}
+  .reveal[data-reveal="zoom"]{transform:scale(.97)}
+  #grid.swapping{filter:none;opacity:.35;transform:none}
+  #grid{transition:opacity .2s ease}
+  html.jr-rv-on .jr-rv{transform:translate3d(0,12px,0);transition-duration:.42s!important}
+
+  /* حركة "وصول القسم" كانت تحرّك قسمًا كاملاً أثناء التمرير */
+  .jr-arrive{animation:none!important}
+
+  /* ظلال أخف داخل الشبكات الطويلة */
+  .card{box-shadow:0 6px 18px -12px rgba(62,74,43,.45)}
+}
+
+/* 5) أثناء التمرير النشط: نوقف شريط الإعلان المتحرك فقط (بدون محدّدات عامة) */
+.marquee.jr-pause div{animation-play-state:paused}
+</style>
+<script>
+/* راية "جارٍ التمرير" — سطر واحد خفيف يخدم كل الطبقات أعلاه */
+(function(){
+  var root = document.documentElement, t = null, on = false;
+  var mq = document.querySelector('.marquee');
+  function off(){ on = false; if(mq) mq.classList.remove('jr-pause'); window.__jrScrolling = false; }
+  window.addEventListener('scroll', function(){
+    if(!on){ on = true; if(mq) mq.classList.add('jr-pause'); window.__jrScrolling = true; }
+    clearTimeout(t); t = setTimeout(off, 160);
+  }, {passive:true});
+
+  /* ضبط ارتفاع الهيدر كمتغيّر ليعمل scroll-margin-top بدقة */
+  function hdr(){
+    var h = document.querySelector('header');
+    if(h) root.style.setProperty('--hdr', Math.round(h.getBoundingClientRect().height) + 'px');
+  }
+  hdr();
+  window.addEventListener('load', hdr);
+  window.addEventListener('resize', hdr, {passive:true});
+})();
+</script>
 </body>
 </html>
