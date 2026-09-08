@@ -2750,297 +2750,112 @@ chipsHTML(); renderGrid(); animateGrid(); renderReviews(); updateCart(); syncAll
 </script>
 
 
-<!-- ===== JR ANCHOR NAV FIX — تمرير دقيق للأقسام (خصوصًا الموبايل) ===== -->
+<!-- ===== JR ANCHOR NAV v32 — تمرير أصلي سلس وخفيف (موبايل أولًا) ===== -->
 <script>
 (function(){
-  var root = document.documentElement;
-  var animId = 0;
-
+  var root=document.documentElement;
+  function reduce(){ try{ return matchMedia("(prefers-reduced-motion:reduce)").matches; }catch(e){ return false; } }
   function headerH(){
-    var h = document.querySelector("header");
-    if(!h) return 0;
-    var cs = getComputedStyle(h);
-    if(cs.position !== "sticky" && cs.position !== "fixed") return 0;
+    var h=document.querySelector("header"); if(!h) return 0;
+    var cs=getComputedStyle(h);
+    if(cs.position!=="sticky"&&cs.position!=="fixed") return 0;
     return Math.round(h.getBoundingClientRect().height);
   }
+  function syncPad(){ root.style.setProperty("--jr-head", (headerH()+10)+"px"); }
+  syncPad();
+  window.addEventListener("resize", syncPad, {passive:true});
+  window.addEventListener("orientationchange", function(){ setTimeout(syncPad,180); }, {passive:true});
+
   function goalFor(el){
-    var max = Math.max(0, (document.documentElement.scrollHeight || 0) - window.innerHeight);
-    var y = el.getBoundingClientRect().top + (window.pageYOffset || root.scrollTop || 0) - headerH() - 10;
-    return Math.max(0, Math.min(Math.round(y), max));
+    var max=Math.max(0,(document.documentElement.scrollHeight||0)-window.innerHeight);
+    var y=el.getBoundingClientRect().top+(window.pageYOffset||root.scrollTop||0)-headerH()-10;
+    return Math.max(0,Math.min(Math.round(y),max));
   }
-  function reduce(){ try{ return matchMedia("(prefers-reduced-motion:reduce)").matches; }catch(e){ return false; } }
-
-  /* ===== v24: أنيميشن دخول متتابع — مرة واحدة فقط لكل قسم في الجلسة ===== */
-  var arriveTimers = [];
-  function clearArriveTimers(){ for(var t=0;t<arriveTimers.length;t++) clearTimeout(arriveTimers[t]); arriveTimers = []; }
-
-  /* سجل الأقسام التي شُغّلت حركتها (يُعاد ضبطه عند تحديث الصفحة فقط) */
-  var arrivedSections = (typeof WeakSet !== "undefined") ? new WeakSet() : null;
-  function hasArrived(el){
-    if(!el) return true;
-    return arrivedSections ? arrivedSections.has(el) : el.getAttribute("data-jr-arrived") === "1";
+  /* تمرير أصلي 100% — يُنفَّذ داخل المتصفح لا داخل JS، فلا يوجد أي تقطيع */
+  function scrollToY(goal){
+    goal=Math.max(0,Math.round(goal));
+    try{ window.scrollTo({top:goal,left:0,behavior:reduce()?"auto":"smooth"}); }
+    catch(e){ window.scrollTo(0,goal); }
   }
-  function markArrived(el){
-    if(!el) return;
-    if(arrivedSections) arrivedSections.add(el);
-    el.setAttribute("data-jr-arrived", "1");
+  function scrollToEl(el){ if(el) scrollToY(goalFor(el)); }
+  window.JRScrollToY=scrollToY;
+  window.JRScrollTo=scrollToEl;
+  window.JRGoalFor=goalFor;
+  /* توافق مع نداءات قديمة */
+  window.JRPrepareArrive=function(){}; window.JRPlayArrive=function(){}; window.JRClearArriveTimers=function(){};
+
+  function closeMenu(){
+    var links=document.getElementById("links");
+    var burger=document.getElementById("burger");
+    var scrim=document.querySelector(".menu-scrim");
+    if(links) links.classList.remove("open");
+    if(scrim) scrim.classList.remove("open");
+    if(burger){ burger.setAttribute("aria-expanded","false"); burger.textContent="\u2630"; }
+    document.body.classList.remove("lock");
   }
-
-  /* تهيئة القسم الهدف: نخفي عناصره فقط في أول زيارة له */
-  function prepareArrive(el){
-    if(!el || reduce() || hasArrived(el)) return;
-    try{
-      var kids = el.querySelectorAll(".jr-rv.jr-in, .reveal.in");
-      for(var i = 0; i < kids.length; i++){
-        var k = kids[i];
-        k.classList.remove("jr-in","in");
-        k.classList.remove("jr-arr-l","jr-arr-r","jr-arr-u");
-        k.classList.add("jr-arr", (i % 2 === 0) ? "jr-arr-l" : "jr-arr-r");
-        k.style.transitionDelay = "0ms";
-      }
-    }catch(e){}
-  }
-
-  /* تشغيل أنيميشن الدخول: مرة واحدة فقط لكل قسم */
-  function playArrive(el){
-    if(!el || reduce() || hasArrived(el)) return;
-    markArrived(el);
-    try{
-      var kids = el.querySelectorAll(".jr-rv:not(.jr-in), .reveal:not(.in)");
-      var step = window.innerWidth < 900 ? 70 : 95;
-      var idx = 0;
-      for(var i = 0; i < kids.length; i++){
-        var k = kids[i];
-        var r = k.getBoundingClientRect();
-        if(r.top > window.innerHeight * 1.15 || r.bottom < -80) continue; /* البعيد يكشفه المتصفح لاحقًا عند التمرير */
-        if(!k.classList.contains("jr-arr")){
-          k.classList.add("jr-arr", (idx % 2 === 0) ? "jr-arr-l" : "jr-arr-r");
-        }
-        (function(node, d){
-          arriveTimers.push(setTimeout(function(){
-            node.style.transitionDelay = "0ms";
-            node.classList.add("jr-in");
-            node.classList.add("in");
-            setTimeout(function(){
-              node.classList.remove("jr-arr","jr-arr-l","jr-arr-r","jr-arr-u");
-            }, 1300);
-          }, d));
-        })(k, 60 + idx * step);
-        idx++;
-        if(idx >= 8) break;
-      }
-      /* أمان: أي عنصر تبقّى مخفيًا يظهر بعد ثانيتين */
-      arriveTimers.push(setTimeout(function(){
-        var rest = el.querySelectorAll(".jr-rv:not(.jr-in), .reveal:not(.in)");
-        for(var j = 0; j < rest.length; j++){
-          var rr = rest[j].getBoundingClientRect();
-          if(rr.top < window.innerHeight){ rest[j].style.transitionDelay = "0ms"; rest[j].classList.add("jr-in","in"); rest[j].classList.remove("jr-arr","jr-arr-l","jr-arr-r","jr-arr-u"); }
-        }
-      }, 2000));
-    }catch(e){}
-  }
-
-  function scrollToY(goal, el){
-    var id = ++animId;
-    goal = Math.max(0, Math.round(goal));
-
-    if(el){ clearArriveTimers(); prepareArrive(el); }
-
-    if(reduce()){
-      root.classList.add("no-smooth");
-      window.scrollTo(0, goal);
-      root.classList.remove("no-smooth");
-      return;
-    }
-
-    /* v20: انتقال سريع وحاسم مع نهاية ناعمة (بلا بطء ولا تقطيع) */
-    var from0 = window.pageYOffset || root.scrollTop || 0;
-    var dist0 = goal - from0;
-    if(Math.abs(dist0) < 2) return;
-    var dur0 = Math.min(620, Math.max(340, 260 + Math.abs(dist0) * 0.16));
-    var t00 = null;
-    function easeOutQuint(p){ return 1 - Math.pow(1 - p, 5); }
-    root.classList.add("no-smooth");
-    requestAnimationFrame(function step(now){
-      if(id !== animId){ root.classList.remove("no-smooth"); return; }
-      if(t00 === null) t00 = now;
-      var p = Math.min(1, (now - t00) / dur0);
-      window.scrollTo(0, Math.round(from0 + dist0 * easeOutQuint(p)));
-      if(p < 1) requestAnimationFrame(step);
-      else {
-        root.classList.remove("no-smooth");
-        if(el){
-          playArrive(el); /* أنيميشن دخول محتوى القسم لحظة الوصول */
-          setTimeout(function(){
-            if(id !== animId) return;
-            var g2 = goalFor(el);
-            var cur = window.pageYOffset || root.scrollTop || 0;
-            if(Math.abs(g2 - cur) > 4) scrollToY(g2, null);
-          }, 60);
-        }
-      }
-    });
-    return;
-
-    /* بديل خفيف للمتصفحات القديمة فقط */
-    var from = window.pageYOffset || root.scrollTop || 0;
-    var d = goal - from, t0 = performance.now();
-    var dur = Math.min(900, Math.max(320, Math.abs(d) * 0.5));
-    root.classList.add("no-smooth");
-    (function step(now){
-      if(id !== animId) return;
-      var p = Math.min(1, (now - t0) / dur);
-      var e = 1 - Math.pow(1 - p, 3);
-      window.scrollTo(0, from + d * e);
-      if(p < 1) requestAnimationFrame(step);
-      else { root.classList.remove("no-smooth"); if(el) arrive(el); }
-    })(t0);
-  }
-
-  function scrollToEl(el){
-    if(!el) return;
-    scrollToY(goalFor(el), el);
-  }
-  window.JRScrollToY = scrollToY;
-  window.JRScrollTo = scrollToEl;
-  window.JRPrepareArrive = prepareArrive;
-  window.JRPlayArrive = playArrive;
-  window.JRClearArriveTimers = clearArriveTimers;
-  window.JRGoalFor = goalFor;
-
-  /* إلغاء الحركة إذا تدخّل المستخدم */
-  ["wheel","touchstart","keydown"].forEach(function(ev){
-    window.addEventListener(ev, function(){
-      if(animId){
-        animId++;
-        /* أُلغي التمرير: أظهر محتوى كل الأقسام القريبة فورًا حتى لا يبقى شيء مخفيًا */
-        clearArriveTimers();
-        try{
-          var near = document.querySelectorAll(".jr-rv:not(.jr-in), .reveal:not(.in)");
-          for(var i = 0; i < near.length; i++){
-            var r = near[i].getBoundingClientRect();
-            if(r.top < window.innerHeight && r.bottom > 0){ near[i].style.transitionDelay = "0ms"; near[i].classList.add("jr-in","in"); near[i].classList.remove("jr-arr","jr-arr-l","jr-arr-r","jr-arr-u"); }
-          }
-        }catch(e){}
-      }
-    }, {passive:true});
-  });
-
-  /* تأثير لمسة (ripple) فوري على رابط القسم ليشعر المستخدم بالاستجابة بلا أي تأخير */
-  function ripple(a, e){
-    if(reduce() || !a) return;
-    try{
-      var cs = getComputedStyle(a);
-      if(cs.position === "static") a.style.position = "relative";
-      a.classList.add("jr-nav-press");
-      var r = a.getBoundingClientRect();
-      var sp = document.createElement("span");
-      sp.className = "jr-ripple";
-      sp.style.left = ((e && e.clientX ? e.clientX - r.left : r.width/2)) + "px";
-      sp.style.top  = ((e && e.clientY ? e.clientY - r.top  : r.height/2)) + "px";
-      a.appendChild(sp);
-      setTimeout(function(){ sp.remove(); }, 620);
-    }catch(err){}
-  }
-
-  /* عرض متتابع احترافي للأقسام عند ظهورها في الشاشة */
-  (function reveal(){
-    if(reduce() || !("IntersectionObserver" in window)) return;
-    function init(){
-      var secs = document.querySelectorAll("section, .section, footer");
-      var items = [];
-      secs.forEach(function(sec){
-        var kids = Array.prototype.filter.call(sec.children, function(k){
-          var t = k.tagName;
-          return t !== "SCRIPT" && t !== "STYLE" && k.offsetHeight > 0;
-        });
-        var pool = kids.length > 1 ? kids : [sec];
-        pool.slice(0, 14).forEach(function(k, i){
-          if(k.classList.contains("jr-rv")) return;
-          k.classList.add("jr-rv");
-          k.style.transitionDelay = Math.min(i * (window.innerWidth < 900 ? 24 : 70), window.innerWidth < 900 ? 120 : 380) + "ms";
-          items.push(k);
-        });
-      });
-      if(!items.length) return;
-      document.documentElement.classList.add("jr-rv-on");
-      var io = new IntersectionObserver(function(entries){
-        entries.forEach(function(en){
-          if(en.isIntersecting){
-            en.target.classList.add("jr-in");
-            io.unobserve(en.target);
-            setTimeout(function(){
-              en.target.style.transitionDelay = "";
-              en.target.style.willChange = "";
-            }, 1200);
-          }
-        });
-      }, {rootMargin: "0px 0px -8% 0px", threshold: 0.06});
-      items.forEach(function(k){
-        var r = k.getBoundingClientRect();
-        if(r.top < innerHeight && r.bottom > 0) k.classList.add("jr-in");
-        else io.observe(k);
-      });
-      /* أمان: أظهر كل شيء بعد 6 ثوانٍ مهما حدث */
-      setTimeout(function(){ items.forEach(function(k){ k.classList.add("jr-in"); }); }, 6000);
-    }
-    if(document.readyState === "complete") setTimeout(init, 60);
-    else window.addEventListener("load", function(){ setTimeout(init, 60); });
-  })();
-
   function targetFromHash(hash){
-    if(!hash || hash === "#" || hash.length < 2) return null;
-    var id = decodeURIComponent(hash.slice(1));
-    return document.getElementById(id) || document.getElementsByName(id)[0] || null;
+    if(!hash||hash==="#"||hash.length<2) return null;
+    var id=decodeURIComponent(hash.slice(1));
+    return document.getElementById(id)||document.getElementsByName(id)[0]||null;
   }
 
-  /* اعتراض كل روابط الأقسام (capture) قبل أي معالج آخر */
   document.addEventListener("click", function(e){
-    var a = e.target && e.target.closest ? e.target.closest('a[href*="#"]') : null;
+    var a=e.target&&e.target.closest?e.target.closest('a[href*="#"]'):null;
     if(!a) return;
-    if(a.target && a.target !== "_self") return;
-    var href = a.getAttribute("href") || "";
-    if(href.charAt(0) !== "#"){
-      if(a.pathname !== location.pathname || a.host !== location.host) return;
+    if(a.target&&a.target!=="_self") return;
+    var href=a.getAttribute("href")||"";
+    if(href.charAt(0)!=="#"){
+      if(a.pathname!==location.pathname||a.host!==location.host) return;
     }
-    var hash = href.indexOf("#") >= 0 ? href.slice(href.indexOf("#")) : "";
-    if(hash === "#top" || hash === "#"){
-      if(hash === "#" && !a.hash) return;
-      e.preventDefault();
-      ripple(a, e);
-      closeMenu();
-      requestAnimationFrame(function(){ scrollToY(0, null); });
+    var hash=href.indexOf("#")>=0?href.slice(href.indexOf("#")):"";
+    if(hash==="#top"||hash==="#"){
+      if(hash==="#"&&!a.hash) return;
+      e.preventDefault(); closeMenu();
+      requestAnimationFrame(function(){ scrollToY(0); });
       return;
     }
-    var el = targetFromHash(hash);
+    var el=targetFromHash(hash);
     if(!el) return;
     e.preventDefault();
-    ripple(a, e);
     closeMenu();
-    /* ننتظر إغلاق القائمة/فك القفل حتى يكون التخطيط نهائيًا قبل الحساب */
+    /* إطار واحد فقط حتى يستقر التخطيط بعد إغلاق القائمة */
     requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        scrollToEl(el);
-        try{ history.replaceState(null, "", hash); }catch(err){}
-      });
+      scrollToEl(el);
+      try{ history.replaceState(null,"",hash); }catch(err){}
     });
   }, true);
 
-  function closeMenu(){
-    var links = document.getElementById("links");
-    var burger = document.getElementById("burger");
-    var scrim = document.querySelector(".menu-scrim");
-    if(links) links.classList.remove("open");
-    if(scrim) scrim.classList.remove("open");
-    if(burger){ burger.setAttribute("aria-expanded","false"); burger.textContent = "☰"; }
-    document.body.classList.remove("lock");
-  }
-
-  /* يبدأ المتجر دائمًا من الأعلى؛ روابط الأقسام تعمل فقط بعد تفاعل المستخدم. */
   window.addEventListener("hashchange", function(){
-    var el = targetFromHash(location.hash);
+    var el=targetFromHash(location.hash);
     if(el) scrollToEl(el);
   });
+
+  /* ===== ظهور خفيف جدًا للعناصر: مرة واحدة، بلا blur وبلا تتابع ثقيل ===== */
+  (function(){
+    if(reduce()||!("IntersectionObserver" in window)) return;
+    function init(){
+      var items=[].slice.call(document.querySelectorAll(".reveal:not(.in)"));
+      if(!items.length) return;
+      var io=new IntersectionObserver(function(en){
+        for(var i=0;i<en.length;i++){
+          if(en[i].isIntersecting){
+            var t=en[i].target;
+            t.classList.add("in");
+            t.style.willChange="";
+            io.unobserve(t);
+          }
+        }
+      },{rootMargin:"0px 0px -6% 0px",threshold:0.05});
+      items.forEach(function(k){
+        var r=k.getBoundingClientRect();
+        if(r.top<innerHeight&&r.bottom>0) k.classList.add("in");
+        else io.observe(k);
+      });
+      setTimeout(function(){ items.forEach(function(k){ k.classList.add("in"); }); }, 8000);
+    }
+    if(document.readyState==="complete") setTimeout(init,60);
+    else window.addEventListener("load", function(){ setTimeout(init,60); });
+  })();
 })();
 </script>
 <style id="jr-langfx-css">
@@ -4076,6 +3891,37 @@ html.jrfill-on .jrf-sec.jrf-fill::after{
   else window.addEventListener("load", function(){ setTimeout(start, 120); });
 })();
 </script>
+<style id="jr-smooth-v32">
+/* ===== طبقة الأداء v32: تمرير سلس وخفيف على الموبايل ===== */
+html{scroll-behavior:smooth;scroll-padding-top:var(--jr-head,84px)}
+section,[id]{scroll-margin-top:var(--jr-head,84px)}
+
+/* ظهور خفيف: شفافية + إزاحة بسيطة فقط — بدون blur (أغلى تأثير على الموبايل) */
+.reveal{opacity:0;transition:opacity .42s cubic-bezier(.22,.61,.36,1),transform .42s cubic-bezier(.22,.61,.36,1)}
+.reveal[data-reveal],.reveal[data-reveal="blur"]{filter:none!important;transform:translate3d(0,18px,0)}
+.reveal[data-reveal="zoom"]{transform:scale(.97)}
+.reveal.in{opacity:1;transform:none;filter:none}
+.reveal,.reveal.in{will-change:auto}
+
+/* تعطيل طبقة الإخفاء/التتابع القديمة نهائيًا */
+html .jr-rv,html .jr-arr,html.jr-rv-on .jr-rv,html.jr-rv-on .jr-arr,
+html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
+  opacity:1!important;transform:none!important;filter:none!important;
+  transition:none!important;animation:none!important;will-change:auto!important;transition-delay:0s!important}
+.jr-arrive{animation:none!important}
+
+@media (max-width:900px){
+  /* الضبابية الحيّة خلف الهيدر مكلفة جدًا أثناء التمرير على الموبايل */
+  header{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(250,246,236,.97)!important}
+  .hero-promo{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .card,.tile,.ct{transition:box-shadow .2s ease,border-color .2s ease}
+  .card .ph img{transition:none}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1!important;transform:none!important;transition:none!important}
+}
+</style>
 </body>
 </html>
 
