@@ -2903,6 +2903,10 @@ chipsHTML(); renderGrid(); animateGrid(); renderReviews(); updateCart(); syncAll
   }
   window.JRScrollToY = scrollToY;
   window.JRScrollTo = scrollToEl;
+  window.JRPrepareArrive = prepareArrive;
+  window.JRPlayArrive = playArrive;
+  window.JRClearArriveTimers = clearArriveTimers;
+  window.JRGoalFor = goalFor;
 
   /* إلغاء الحركة إذا تدخّل المستخدم */
   ["wheel","touchstart","keydown"].forEach(function(ev){
@@ -4075,70 +4079,145 @@ html.jrfill-on .jrf-sec.jrf-fill::after{
 </body>
 </html>
 
-<!-- ===== JR v28 — انتقال سينمائي ناعم عند النقر على القسم ===== -->
+<!-- ===== JR v31 — انتقال أنيق بحركة واحدة متصلة (بلا ارتداد نهائي) + أداء ممتاز على الموبايل ===== -->
 <style>
-#jrVeil{position:fixed;inset:0;z-index:9998;pointer-events:none;opacity:0;
-  background:radial-gradient(120% 80% at 50% 0%,rgba(212,175,55,.10),transparent 60%),
-             linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,0) 45%,rgba(0,0,0,.28));
-  backdrop-filter:blur(0px);transition:opacity .55s cubic-bezier(.22,.61,.36,1),backdrop-filter .55s ease}
-#jrVeil.on{opacity:1;backdrop-filter:blur(2.5px)}
-#jrVeil .beam{position:absolute;left:-30%;right:-30%;height:38vh;top:-40vh;
-  background:linear-gradient(180deg,transparent,rgba(212,175,55,.22),rgba(255,255,255,.10),transparent);
-  filter:blur(14px);opacity:0}
-#jrVeil.on .beam{animation:jrBeam 1.5s cubic-bezier(.3,.9,.2,1) forwards}
-@keyframes jrBeam{0%{top:-45vh;opacity:0}25%{opacity:.95}100%{top:115vh;opacity:0}}
-.jr-focus{animation:jrFocus 1.25s cubic-bezier(.22,.61,.36,1)}
-@keyframes jrFocus{0%{transform:scale(.985);filter:saturate(.85) brightness(.92)}
-  55%{transform:scale(1.004);filter:saturate(1.05) brightness(1.02)}
-  100%{transform:none;filter:none}}
-@media (prefers-reduced-motion:reduce){#jrVeil,.jr-focus{display:none;animation:none!important}}
+#jrGoBar{position:fixed;top:0;left:0;height:2px;width:0;z-index:9999;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,rgba(212,175,55,0),rgba(212,175,55,.95),rgba(255,244,214,.9));
+  box-shadow:0 0 12px rgba(212,175,55,.45);transition:opacity .28s ease}
+#jrGoBar.on{opacity:1}
+/* خط ذهبي هادئ تحت عنوان القسم عند الوصول — بلا أي إزاحة للمحتوى */
+.jr-land-line{position:relative}
+.jr-land-line::after{content:"";position:absolute;right:0;bottom:-8px;height:2px;width:0;
+  background:linear-gradient(90deg,rgba(212,175,55,0),rgba(212,175,55,.9));
+  animation:jrLandLine 1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes jrLandLine{0%{width:0;opacity:0}30%{opacity:1}100%{width:100%;opacity:.9}}
+/* على الموبايل: كشف بسيط وخفيف (بلا blur ولا حركة جانبية) لأداء سلس */
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-arr:not(.jr-in):not(.in){filter:none!important}
+  html.jr-rv-on .jr-arr-l:not(.jr-in):not(.in),
+  html.jr-rv-on .jr-arr-r:not(.jr-in):not(.in),
+  html.jr-rv-on .jr-arr-u:not(.jr-in):not(.in){transform:translate3d(0,18px,0)!important}
+  html.jr-rv-on .jr-arr{transition:opacity .42s ease-out,transform .42s ease-out!important}
+  .jr-arrive{animation:none!important}
+  .jr-arrive::after{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){#jrGoBar{display:none}.jr-land-line::after{animation:none!important}}
 </style>
 <script>
 (function(){
   var root=document.documentElement;
   function reduce(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
-  var veil=document.createElement("div");veil.id="jrVeil";veil.innerHTML='<span class="beam"></span>';
-  document.body.appendChild(veil);
-  var orig=window.JRScrollTo, busy=0;
+  function isMobile(){try{return matchMedia("(max-width:900px), (hover:none)").matches}catch(e){return window.innerWidth<900}}
+  var bar=document.createElement("div");bar.id="jrGoBar";document.body.appendChild(bar);
+  var orig=window.JRScrollTo,busy=0;
+
   function headerH(){var h=document.querySelector("header");if(!h)return 0;var cs=getComputedStyle(h);
     if(cs.position!=="sticky"&&cs.position!=="fixed")return 0;return Math.round(h.getBoundingClientRect().height);}
   function goalFor(el){var max=Math.max(0,(root.scrollHeight||0)-window.innerHeight);
     var y=el.getBoundingClientRect().top+(window.pageYOffset||root.scrollTop||0)-headerH()-10;
     return Math.max(0,Math.min(Math.round(y),max));}
-  function easeInOutCubic(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;}
+  function ease(p){return 1-Math.pow(1-p,4);} /* بداية فورية ونهاية ناعمة تتوقف تمامًا */
+
+  function line(el){
+    try{
+      var h=el.querySelector("h2,h3,.sec-title,.title");
+      if(!h)return;
+      h.classList.remove("jr-land-line");void h.offsetWidth;h.classList.add("jr-land-line");
+      setTimeout(function(){h.classList.remove("jr-land-line");},1400);
+    }catch(e){}
+  }
+  function reveal(el){
+    try{ if(window.JRPlayArrive) window.JRPlayArrive(el); }catch(e){}
+    line(el);
+  }
 
   window.JRScrollTo=function(el){
-    if(!el||reduce()||typeof orig!=="function"){ if(orig) orig(el); return; }
+    if(!el){return;}
+    if(reduce()){ if(orig) orig(el); return; }
     var id=++busy;
     var from=window.pageYOffset||root.scrollTop||0;
     var target=goalFor(el);
-    var dir=target>=from?1:-1;
-    var stop=target-dir*110;                 /* نتوقف قبل الهدف قليلًا ليكمل الأصل الحركة + كشف المحتوى */
-    var dist=stop-from;
-    veil.classList.add("on");
-    var dur=Math.min(1750,Math.max(950,700+Math.abs(target-from)*0.42));
-    if(Math.abs(dist)<24){ veil.classList.remove("on"); orig(el); glow(el); return; }
-    var t0=null; root.classList.add("no-smooth");
-    function cancel(){ if(id===busy){ busy++; root.classList.remove("no-smooth"); veil.classList.remove("on"); } }
-    ["wheel","touchstart","keydown"].forEach(function(ev){window.addEventListener(ev,cancel,{once:true,passive:true});});
+    var total=Math.abs(target-from);
+
+    /* إخفاء محتوى القسم مرة واحدة قبل بدء الحركة */
+    try{ if(window.JRClearArriveTimers) window.JRClearArriveTimers();
+         if(window.JRPrepareArrive) window.JRPrepareArrive(el); }catch(e){}
+
+    if(total<24){ reveal(el); return; }
+
+    var mob=isMobile();
+    var dur=mob ? Math.min(620,Math.max(380,300+total*0.16))
+                : Math.min(1050,Math.max(620,480+total*0.26));
+
+    bar.classList.add("on");bar.style.width="0%";
+
+    /* أي تفاعل من المستخدم يوقف الحركة فورًا ويترك له التحكم الكامل */
+    var stopped=false;
+    function cancel(){ if(stopped)return; stopped=true; busy++;
+      root.classList.remove("no-smooth");
+      bar.classList.remove("on");bar.style.width="0%";
+      cleanup(); reveal(el); }
+    var evs=["wheel","touchstart","pointerdown","keydown"];
+    function cleanup(){evs.forEach(function(ev){window.removeEventListener(ev,cancel,true);});}
+    evs.forEach(function(ev){window.addEventListener(ev,cancel,{capture:true,passive:true});});
+
+    var t0=null;root.classList.add("no-smooth");
+    /* على الموبايل نكشف المحتوى مع بداية الحركة حتى لا يبدو هناك تأخير */
+    if(mob) setTimeout(function(){ if(id===busy) reveal(el); }, Math.round(dur*0.35));
+
     requestAnimationFrame(function step(now){
-      if(id!==busy) return;
+      if(id!==busy)return;
       if(t0===null)t0=now;
       var p=Math.min(1,(now-t0)/dur);
-      window.scrollTo(0,Math.round(from+dist*easeInOutCubic(p)));
-      if(p<1) requestAnimationFrame(step);
+      /* حركة واحدة متصلة حتى الهدف النهائي بالضبط — لا تمرير إضافي بعدها */
+      window.scrollTo(0,p>=1?target:Math.round(from+(target-from)*ease(p)));
+      bar.style.width=Math.round(p*100)+"%";
+      if(p<1)requestAnimationFrame(step);
       else{
+        cleanup();
         root.classList.remove("no-smooth");
-        veil.classList.remove("on");
-        orig(el);            /* المسافة الأخيرة + الأنيميشن المتتابع للمحتوى */
-        glow(el);
+        bar.classList.remove("on");
+        setTimeout(function(){bar.style.width="0%";},300);
+        if(!mob) reveal(el);
       }
     });
   };
-  function glow(el){
-    try{ el.classList.remove("jr-focus"); void el.offsetWidth; el.classList.add("jr-focus");
-      setTimeout(function(){ el.classList.remove("jr-focus"); },1400);
-    }catch(e){}
+})();
+</script>
+
+<!-- ===== JR v29 — تفعيل الانتقال السينمائي على نقر روابط الأقسام (أولوية عالية) ===== -->
+<script>
+(function(){
+  function reduce(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
+  function closeMenu(){
+    var links=document.getElementById("links"),burger=document.getElementById("burger"),
+        scrim=document.querySelector(".menu-scrim");
+    if(links)links.classList.remove("open");
+    if(scrim)scrim.classList.remove("open");
+    if(burger){burger.setAttribute("aria-expanded","false");burger.textContent="☰";}
+    document.body.classList.remove("lock");
   }
+  /* الاستماع على window في مرحلة الالتقاط: يعمل قبل معالجات document القديمة */
+  window.addEventListener("click", function(e){
+    if(reduce()) return;
+    var a=e.target&&e.target.closest?e.target.closest('a[href*="#"]'):null;
+    if(!a) return;
+    if(a.target&&a.target!=="_self") return;
+    var href=a.getAttribute("href")||"";
+    if(href.charAt(0)!=="#"&&(a.pathname!==location.pathname||a.host!==location.host)) return;
+    var i=href.indexOf("#"); if(i<0) return;
+    var id=decodeURIComponent(href.slice(i+1));
+    var el=id?document.getElementById(id):null;
+    if(!el||typeof window.JRScrollTo!=="function") return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenu();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        window.JRScrollTo(el);
+        try{history.replaceState(null,"","#"+id);}catch(err){}
+      });
+    });
+  }, true);
 })();
 </script>
