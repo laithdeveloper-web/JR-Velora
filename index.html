@@ -771,6 +771,29 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
 
 .btn .cart-ico,.btn-ico .cart-ico{display:inline-block;width:19px;height:19px;vertical-align:-4px;margin-inline-start:.4rem}
 #flyer .cart-ico,.flyer .cart-ico{width:26px;height:26px;color:var(--olive,#5b6a4a)}
+
+/* ===== حركة انتقال الأقسام الاحترافية (v6) ===== */
+@keyframes jrArriveGlow{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+@keyframes jrArriveRise{0%{opacity:0;transform:translate3d(0,26px,0)}100%{opacity:1;transform:none}}
+.jr-arrive{position:relative}
+.jr-arrive::after{
+  content:"";position:absolute;left:0;right:0;top:0;height:3px;pointer-events:none;z-index:5;
+  background:linear-gradient(90deg,transparent,rgba(212,175,55,.95),transparent);
+  filter:blur(.3px);animation:jrArriveGlow .9s cubic-bezier(.22,.61,.36,1) both;
+}
+.jr-arrive > *{animation:jrArriveRise .62s cubic-bezier(.22,.9,.28,1) both}
+.jr-arrive > *:nth-child(2){animation-delay:.06s}
+.jr-arrive > *:nth-child(3){animation-delay:.12s}
+.jr-arrive > *:nth-child(4){animation-delay:.18s}
+.jr-arrive > *:nth-child(n+5){animation-delay:.22s}
+.jr-nav-press{position:relative;overflow:hidden}
+@keyframes jrRipple{0%{transform:translate(-50%,-50%) scale(.2);opacity:.55}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+.jr-ripple{position:absolute;width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(212,175,55,.55),rgba(212,175,55,0) 70%);
+  pointer-events:none;animation:jrRipple .62s ease-out forwards}
+@media (prefers-reduced-motion:reduce){
+  .jr-arrive::after,.jr-arrive > *,.jr-ripple{animation:none!important}
+}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -796,18 +819,57 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
 (function(){
   window.__introDone = false;
   window.__userScrolled = false;
-  function mark(){ window.__userScrolled = true; }
+  window.__revealingIntro = false;
+
+  /* لا نسمح للمتصفح باستعادة موضع قديم أو هاش قسم عند فتح المتجر من جديد. */
+  try{
+    if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    if(location.hash) history.replaceState(null, '', location.pathname + location.search);
+  }catch(e){}
+
+  function forceTop(){
+    try{ window.scrollTo({top:0,left:0,behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }
+  function mark(){ if(window.__introDone) window.__userScrolled = true; }
   ['wheel','touchmove','touchstart','keydown','pointerdown'].forEach(function(ev){
     window.addEventListener(ev, mark, {passive:true, capture:true});
   });
   window.addEventListener('scroll', function(){
-    if(!window.__introDone) return; /* قبل نهاية الانترو أي تمرير هو استعادة من المتصفح وليس من المستخدم */
+    if(!window.__introDone){ forceTop(); return; }
     if((window.scrollY||document.documentElement.scrollTop||0) > 2) mark();
   }, {passive:true});
+
+  /* تثبيت مستمر حتى اكتمال فتح الصفحة؛ يمنع استعادة الموضع المتأخرة في Safari/Chrome. */
+  (function pin(){
+    if(window.__introDone) return;
+    forceTop();
+    requestAnimationFrame(pin);
+  })();
+
+  window.__forceTop = forceTop;
   window.__safeTop = function(){
     if(window.__introDone && window.__userScrolled) return;
-    try{ window.scrollTo(0,0); }catch(e){}
-    document.documentElement.scrollTop=0; document.body.scrollTop=0;
+    forceTop();
+  };
+
+  /* فك القفل خلف شاشة الانترو وهي ما تزال معتمة، ثم كشف الصفحة بعد ثباتها بالأعلى. */
+  window.__revealFromTop = function(intro, removeDelay){
+    if(window.__revealingIntro) return;
+    window.__revealingIntro = true;
+    document.body.classList.remove('introing');
+    document.documentElement.classList.remove('introing');
+    forceTop();
+    requestAnimationFrame(function(){
+      forceTop();
+      requestAnimationFrame(function(){
+        forceTop();
+        if(intro) intro.classList.add('done');
+        requestAnimationFrame(function(){ forceTop(); window.__introDone = true; });
+        setTimeout(function(){ if(intro && intro.parentNode) intro.remove(); }, removeDelay || 900);
+      });
+    });
   };
 })();
 </script>
@@ -828,17 +890,14 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
     var el = document.getElementById('intro');
     var f = document.getElementById('introFill'), p = document.getElementById('introPct');
     if(f) f.style.width='100%'; if(p) p.textContent='100%';
-    document.body.classList.remove('introing');
-    document.documentElement.classList.remove('introing');
-    if(el){ el.classList.add('done'); setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); },700); }
     window.__userScrolled = false;
-    try{ window.scrollTo(0,0); }catch(e){}
-    document.documentElement.scrollTop=0; document.body.scrollTop=0;
-    window.__safeTop();
-    setTimeout(function(){
+    if(window.__revealFromTop) window.__revealFromTop(el, 900);
+    else {
+      document.body.classList.remove('introing');
+      document.documentElement.classList.remove('introing');
       try{ window.scrollTo(0,0); }catch(e){}
-      document.documentElement.scrollTop=0; document.body.scrollTop=0;
-    },300);
+      if(el) el.classList.add('done');
+    }
   }
   window.__killIntro = killIntro;
   setTimeout(killIntro, MAX);
@@ -1804,13 +1863,16 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   function finish(){
     if(hidden) return; hidden=true; set(100);
     setTimeout(function(){
-      el.classList.add('done');
       window.__userScrolled = false; /* تصفير أي تمرير وهمي حدث أثناء الانترو */
-      jump();
-      document.body.classList.remove('introing');
-      jump();
-      requestAnimationFrame(function(){ document.documentElement.classList.remove('introing'); jump(); window.__introDone = true; });
-      setTimeout(function(){ if(el && el.parentNode) el.remove(); },900);
+      if(window.__revealFromTop) window.__revealFromTop(el, 900);
+      else {
+        document.body.classList.remove('introing');
+        document.documentElement.classList.remove('introing');
+        jump();
+        el.classList.add('done');
+        window.__introDone = true;
+        setTimeout(function(){ if(el && el.parentNode) el.remove(); },900);
+      }
     },420);
   }
   window.addEventListener('load', function(){ loaded=true; });
@@ -2376,41 +2438,94 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
 
   function settle(el, id, n){
     if(id !== animId) return;
-    if(n > 14){ root.classList.remove("no-smooth"); return; }
+    if(n > 10){ root.classList.remove("no-smooth"); return; }
     setTimeout(function(){
       if(id !== animId) return;
       var goal = goalFor(el);
-      if(Math.abs((window.pageYOffset || 0) - goal) > 2) window.scrollTo(0, goal);
+      var cur = window.pageYOffset || 0;
+      var d = goal - cur;
+      if(Math.abs(d) > 2){
+        /* تصحيح ناعم بدل القفز المفاجئ */
+        if(Math.abs(d) < 60) glide(cur, goal, 220, id);
+        else window.scrollTo(0, goal);
+      }
       settle(el, id, n + 1);
-    }, 70);
+    }, 80);
+  }
+
+  function glide(from, to, dur, id){
+    var t0 = performance.now();
+    (function s(now){
+      if(id !== animId) return;
+      var t = Math.min((now - t0)/dur, 1);
+      var e = 1 - Math.pow(1 - t, 3);
+      window.scrollTo(0, Math.round(from + (to - from)*e));
+      if(t < 1) requestAnimationFrame(s);
+    })(t0);
+  }
+
+  /* حركة وصول أنيقة للقسم الهدف */
+  function arrive(el){
+    if(!el || reduce()) return;
+    el.classList.remove("jr-arrive");
+    /* إعادة تشغيل الأنيميشن بدون إجبار تخطيط ثقيل */
+    void el.offsetWidth;
+    el.classList.add("jr-arrive");
+    clearTimeout(el.__jrArriveT);
+    el.__jrArriveT = setTimeout(function(){ el.classList.remove("jr-arrive"); }, 1100);
   }
 
   function scrollToEl(el){
     if(!el) return;
     var id = ++animId;
-    root.classList.add("no-smooth");           /* نلغي smooth الأصلي ونتحكم يدويًا */
+    root.classList.add("no-smooth");
     var start = window.pageYOffset || root.scrollTop || 0;
-    var dist  = Math.abs(goalFor(el) - start);
-    var dur   = reduce() ? 0 : Math.min(760, Math.max(300, dist * 0.45));
+    var goal0 = goalFor(el);
+    var dist  = Math.abs(goal0 - start);
+    /* مدة ذكية: قصيرة للمسافات القصيرة، ولا تتجاوز حدًّا مريحًا للمسافات الطويلة */
+    var dur   = reduce() ? 0 : Math.min(900, Math.max(340, 260 + Math.sqrt(dist) * 22));
     var t0    = performance.now();
+    var goal  = goal0;
+    var f     = 0;
+    var arrived = false;
 
     function step(now){
       if(id !== animId) return;
       var t = dur ? Math.min((now - t0) / dur, 1) : 1;
-      var e = 1 - Math.pow(1 - t, 3);
-      var goal = goalFor(el);                  /* إعادة الحساب كل إطار: يعالج تغيّر التخطيط وتحميل الصور */
+      /* easeOutExpo: انطلاقة سريعة وهبوط حريري بدون أي إحساس بالبطء */
+      var e = t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      /* إعادة حساب الهدف بشكل مُقنَّن (كل 3 إطارات) لتفادي تكلفة التخطيط كل إطار */
+      if((f++ % 3) === 0 || t === 1) goal = goalFor(el);
       window.scrollTo(0, Math.round(start + (goal - start) * e));
+      if(!arrived && t > 0.62){ arrived = true; arrive(el); }
       if(t < 1) requestAnimationFrame(step);
-      else settle(el, id, 0);
+      else { if(!arrived) arrive(el); settle(el, id, 0); }
     }
     requestAnimationFrame(step);
   }
   window.JRScrollTo = scrollToEl;
 
   /* إلغاء الحركة إذا تدخّل المستخدم */
-  ["wheel","touchmove","keydown"].forEach(function(ev){
+  ["wheel","touchstart","touchmove","keydown"].forEach(function(ev){
     window.addEventListener(ev, function(){ if(animId){ animId++; root.classList.remove("no-smooth"); } }, {passive:true});
   });
+
+  /* تأثير لمسة (ripple) فوري على رابط القسم ليشعر المستخدم بالاستجابة بلا أي تأخير */
+  function ripple(a, e){
+    if(reduce() || !a) return;
+    try{
+      var cs = getComputedStyle(a);
+      if(cs.position === "static") a.style.position = "relative";
+      a.classList.add("jr-nav-press");
+      var r = a.getBoundingClientRect();
+      var sp = document.createElement("span");
+      sp.className = "jr-ripple";
+      sp.style.left = ((e && e.clientX ? e.clientX - r.left : r.width/2)) + "px";
+      sp.style.top  = ((e && e.clientY ? e.clientY - r.top  : r.height/2)) + "px";
+      a.appendChild(sp);
+      setTimeout(function(){ sp.remove(); }, 620);
+    }catch(err){}
+  }
 
   function targetFromHash(hash){
     if(!hash || hash === "#" || hash.length < 2) return null;
@@ -2431,6 +2546,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     if(hash === "#top" || hash === "#"){
       if(hash === "#" && !a.hash) return;
       e.preventDefault();
+      ripple(a, e);
       closeMenu();
       animId++;
       root.classList.add("no-smooth");
@@ -2441,13 +2557,14 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     var el = targetFromHash(hash);
     if(!el) return;
     e.preventDefault();
+    ripple(a, e);
     closeMenu();
     /* ننتظر إغلاق القائمة/فك القفل حتى يكون التخطيط نهائيًا قبل الحساب */
     requestAnimationFrame(function(){
-      setTimeout(function(){
+      requestAnimationFrame(function(){
         scrollToEl(el);
         try{ history.replaceState(null, "", hash); }catch(err){}
-      }, 40);
+      });
     });
   }, true);
 
@@ -2461,17 +2578,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     document.body.classList.remove("lock");
   }
 
-  /* فتح الصفحة برابط فيه #قسم */
-  function handleInitialHash(){
-    var el = targetFromHash(location.hash);
-    if(!el) return;
-    var tries = 0;
-    (function retry(){
-      scrollToEl(el);
-      if(++tries < 3) setTimeout(retry, 500);
-    })();
-  }
-  window.addEventListener("load", function(){ setTimeout(handleInitialHash, 900); });
+  /* يبدأ المتجر دائمًا من الأعلى؛ روابط الأقسام تعمل فقط بعد تفاعل المستخدم. */
   window.addEventListener("hashchange", function(){
     var el = targetFromHash(location.hash);
     if(el) scrollToEl(el);
