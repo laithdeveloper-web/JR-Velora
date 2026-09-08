@@ -356,7 +356,10 @@ footer a:hover{color:var(--gold-l)}
 .fbot{border-top:1px solid rgba(255,255,255,.14);margin-top:26px;padding-top:16px;text-align:center;font-size:.86rem}
 
 /* ===== CART / MODAL ===== */
-.ov{position:fixed;inset:0;background:rgba(38,38,31,.5);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s;z-index:950}
+.ov{position:fixed;inset:0;background:rgba(38,38,31,.5);backdrop-filter:blur(var(--ovB,3px));-webkit-backdrop-filter:blur(var(--ovB,3px));opacity:0;visibility:hidden;transition:opacity .38s cubic-bezier(.22,.61,.36,1),visibility .38s;z-index:950;overflow:hidden}
+.ov .ov-tap{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:rgba(255,255,255,.30);pointer-events:none;animation:ovTap .6s cubic-bezier(.22,.61,.36,1) forwards}
+@keyframes ovTap{0%{transform:scale(.4);opacity:.55}100%{transform:scale(11);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ov .ov-tap{display:none}}
 .ov.open{opacity:var(--ovP,1);visibility:visible}
 .ov.dragging{transition:none}
 .drawer{position:fixed;top:0;inset-inline-end:0;height:100%;width:min(430px,100%);background:var(--ivory);z-index:960;display:flex;flex-direction:column;transform:translateX(-110%);transition:transform .35s cubic-bezier(.2,.8,.2,1);will-change:transform;box-shadow:var(--shadow)}
@@ -643,7 +646,8 @@ section[id],footer{scroll-margin-top:calc(var(--hdr) + 12px)}
   html[dir="rtl"] .drawer{transform:translate3d(0,102%,0)}
   .drawer.open,html[dir="rtl"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
   /* أثناء السحب: بلا انتقال ليتبع الإصبع 1:1 */
-  .drawer.dragging,html[dir="rtl"] .drawer.dragging{transition:none}
+  .drawer.dragging,html[dir="rtl"] .drawer.dragging,
+  .drawer.anim,html[dir="rtl"] .drawer.anim{transition:none}
   /* الرجوع للمكان: نابض ناعم */
   .drawer.snapping,html[dir="rtl"] .drawer.snapping{transition:transform .48s cubic-bezier(.22,1.02,.3,1)}
   /* الإغلاق بالسحب: انزلاق سريع للأسفل */
@@ -1461,7 +1465,7 @@ $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCa
 $("#cartBtn").onclick = () => openCart();
 $("#clearCartBtn").onclick = openConfirmClear;
 $("#closeCart").onclick = () => closeAll();
-$("#ov").onclick = () => { if($("#confirmClear").classList.contains("open")) closeConfirmClear(); else closeAll(); };
+$("#ov").onclick = () => { if($("#confirmClear").classList.contains("open")) return closeConfirmClear(); if(window.dismissCartSheet && window.dismissCartSheet()) return; closeAll(); };
 $("#cancelClearBtn").onclick = closeConfirmClear;
 $("#confirmClearBtn").onclick = confirmClearAll;
 $("#closeCheckout").onclick = closeAll;
@@ -1916,7 +1920,7 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   updateCart = function(){ _updateCart.apply(null, arguments); syncMcart(); };
   syncMcart();
 
-  /* --- 6) سحب صفحة السلة للأسفل لإغلاقها (Swipe to dismiss) — نسخة احترافية سلسة --- */
+  /* --- 6) سحب صفحة السلة (Swipe to dismiss) — محرّك فيزيائي سلس + إغلاق ناعم بالنقر على الخلفية --- */
   (function(){
     var drawer = document.getElementById("cart");
     if(!drawer) return;
@@ -1925,111 +1929,205 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
     var ov    = document.getElementById("ov");
     var reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 
-    var active=false, startY=0, y=0, lastY=0, lastT=0, vel=0, raf=0, fromList=false, pid=null;
+    var y = 0, v = 0;                 // px , px/ms
+    var dragging = false, pid = null, fromList = false;
+    var startY = 0, startOffset = 0, lastY = 0, lastT = 0;
+    var raf = 0, mode = null, onDone = null;
+    var tw = null;                    // tween state
 
-    function setY(v){
-      drawer.style.setProperty("--dragY", v.toFixed(2) + "px");
+    function H(){ return drawer.offsetHeight || 1; }
+
+    function paint(){
+      drawer.style.setProperty("--dragY", y.toFixed(2) + "px");
       if(ov){
-        var h = drawer.offsetHeight || 1;
-        var p = Math.max(0, 1 - (v / h) * 0.9);
+        var p = Math.max(0, Math.min(1, 1 - (y / H()) * 0.92));
         ov.style.setProperty("--ovP", p.toFixed(3));
+        ov.style.setProperty("--ovB", (p * 3).toFixed(2) + "px");
       }
     }
     function clearY(){
       drawer.style.removeProperty("--dragY");
-      ov && ov.style.removeProperty("--ovP");
+      if(ov){ ov.style.removeProperty("--ovP"); ov.style.removeProperty("--ovB"); }
     }
-    function tick(){ raf = 0; setY(y); }
-    function schedule(){ if(!raf) raf = requestAnimationFrame(tick); }
+    function stopAnim(){
+      if(raf){ cancelAnimationFrame(raf); raf = 0; }
+      mode = null; tw = null; onDone = null;
+    }
 
-    function begin(clientY, target){
+    /* حلقة واحدة لكل الحركات: نابض للرجوع، ومنحنى ناعم للإغلاق */
+    function loop(now){
+      raf = 0;
+      var dt = Math.min(34, Math.max(1, now - lastT));
+      lastT = now;
+
+      if(mode === "spring"){
+        // نابض مُخمَّد بشكل مثالي يبدأ من سرعة الإصبع الحقيقية
+        var w = 0.0128, z = 0.86;                       // تردد وتخميد
+        var steps = Math.ceil(dt / 8), h = dt / steps;
+        for(var i = 0; i < steps; i++){
+          var a = -2 * z * w * v - w * w * y;
+          v += a * h;
+          y += v * h;
+        }
+        paint();
+        if(Math.abs(y) < 0.25 && Math.abs(v) < 0.02){ y = 0; v = 0; paint(); finish(); return; }
+      }else if(mode === "tween"){
+        tw.t += dt;
+        var p = Math.min(1, tw.t / tw.dur);
+        y = tw.from + (tw.to - tw.from) * tw.ease(p);
+        paint();
+        if(p >= 1){ finish(); return; }
+      }else{ return; }
+      raf = requestAnimationFrame(loop);
+    }
+    function start(m){
+      mode = m; lastT = performance.now();
+      if(!raf) raf = requestAnimationFrame(loop);
+    }
+    function finish(){
+      var cb = onDone;
+      stopAnim();
+      if(cb) cb();
+    }
+
+    function springBack(){
+      drawer.classList.add("anim");
+      if(reduce){ y = 0; v = 0; paint(); settle(); return; }
+      onDone = settle;
+      start("spring");
+    }
+    function settle(){
+      drawer.classList.remove("anim");
+      y = 0; v = 0; clearY();
+    }
+    /* إغلاق مُتحرّك: يحترم سرعة الإصبع، أو منحنى هادئ عند النقر على الخلفية */
+    function dismiss(kind){
+      var h = H(), rest = Math.max(1, h + 48 - y);
+      drawer.classList.add("anim");
+      if(reduce){ closeNow(); return; }
+      var dur, ease;
+      if(kind === "tap"){
+        dur = 400;
+        ease = function(t){ return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }; // ناعم بالبداية والنهاية
+      }else{
+        // مدة مشتقّة من السرعة: كلما أسرعت الحركة قصُرت المدة (بحدود مريحة)
+        var speed = Math.max(0.35, Math.min(3.2, v));
+        dur = Math.max(180, Math.min(420, rest / speed));
+        ease = function(t){ return 1 - Math.pow(1 - t, 3); }; // خروج ناعم يكمل زخم الإصبع
+      }
+      tw = { t: 0, from: y, to: h + 48, dur: dur, ease: ease };
+      onDone = closeNow;
+      start("tween");
+    }
+    function closeNow(){
+      drawer.classList.remove("anim");
+      clearY(); y = 0; v = 0;
+      closeAll();
+    }
+
+    /* ===== السحب ===== */
+    function canDrag(target){
       if(!isMobile() || !drawer.classList.contains("open")) return false;
+      if(target && target.closest && target.closest("button,a,input,select,textarea")) return false;
       var inHead = !!(dhead && target && (dhead === target || dhead.contains(target)));
       fromList = !!(list && target && list.contains(target));
-      if(!inHead && !fromList && target !== drawer) return false; // لا تسحب من الأزرار/الحقول السفلية
-      if(fromList && list.scrollTop > 0) return false;   // اترك التمرير للقائمة
-      active=true; startY=clientY; y=0; vel=0; lastY=clientY; lastT=performance.now();
-      drawer.classList.remove("snapping","closing");
+      if(!inHead && !fromList && target !== drawer) return false;
+      if(fromList && list.scrollTop > 0) return false;
+      return true;
+    }
+    function begin(clientY, target){
+      if(!canDrag(target)) return false;
+      startOffset = y;                 // التقاط الحركة الجارية (قابل للمقاطعة)
+      stopAnim();
+      drawer.classList.remove("anim");
+      dragging = true; startY = clientY; lastY = clientY; lastT = performance.now(); v = 0;
       drawer.classList.add("dragging");
       ov && ov.classList.add("dragging");
       return true;
     }
     function move(clientY){
-      if(!active) return false;
-      var d = clientY - startY;
-      if(fromList && d < 0) return false;               // سحب للأعلى داخل القائمة = تمرير عادي
+      if(!dragging) return false;
+      var d = (clientY - startY) + startOffset;
+      if(fromList && d < 0 && startOffset <= 0) return false;
       // مقاومة مطاطية عند السحب للأعلى
       y = d >= 0 ? d : -Math.pow(-d, 0.55);
       var now = performance.now(), dt = now - lastT;
-      if(dt > 0){ vel = (clientY - lastY) / dt; lastY = clientY; lastT = now; }
-      schedule();
+      if(dt > 0){
+        var iv = (clientY - lastY) / dt;
+        v = v * 0.7 + iv * 0.3;        // تنعيم السرعة لمنع الاهتزاز
+        lastY = clientY; lastT = now;
+      }
+      paint();
       return true;
     }
-    function end(){
-      if(!active) return;
-      active=false;
-      if(raf){ cancelAnimationFrame(raf); raf=0; }
+    function release(){
+      if(!dragging) return;
+      dragging = false;
       drawer.classList.remove("dragging");
       ov && ov.classList.remove("dragging");
-      var h = drawer.offsetHeight || 1;
-      var shouldClose = y > h * 0.28 || (vel > 0.75 && y > 40);
-      if(shouldClose){
-        drawer.classList.add("closing");
-        setY(h + 40);
-        ov && ov.style.setProperty("--ovP","0");
-        var done=false;
-        var finish = function(){
-          if(done) return; done=true;
-          drawer.removeEventListener("transitionend", finish);
-          drawer.classList.remove("closing");
-          clearY();
-          closeAll();
-        };
-        drawer.addEventListener("transitionend", finish);
-        setTimeout(finish, reduce ? 0 : 340);
-      }else{
-        drawer.classList.add("snapping");
-        setY(0);
-        var t = setTimeout(function(){
-          drawer.classList.remove("snapping");
-          clearY();
-        }, reduce ? 0 : 500);
-        void t;
-      }
+      var h = H();
+      var projected = y + v * 120;      // توقّع موضع الاستقرار من الزخم
+      if(v > 1.1 || projected > h * 0.32) dismiss("swipe");
+      else springBack();
     }
 
-    /* Pointer Events (يشمل اللمس والماوس) مع بديل touch للأجهزة القديمة */
     if(window.PointerEvent){
-      var onDown = function(e){
+      drawer.addEventListener("pointerdown", function(e){
         if(e.pointerType === "mouse" && e.button !== 0) return;
-        if(e.target.closest && e.target.closest("button,a,input,select,textarea")) return;
-        if(begin(e.clientY, e.target)){ pid = e.pointerId; }
-      };
-      drawer.addEventListener("pointerdown", onDown);
+        if(begin(e.clientY, e.target)) pid = e.pointerId;
+      });
       window.addEventListener("pointermove", function(e){
-        if(!active || (pid !== null && e.pointerId !== pid)) return;
+        if(!dragging || (pid !== null && e.pointerId !== pid)) return;
         if(move(e.clientY) && e.cancelable) e.preventDefault();
       }, {passive:false});
-      window.addEventListener("pointerup", function(){ pid=null; end(); });
-      window.addEventListener("pointercancel", function(){ pid=null; end(); });
+      window.addEventListener("pointerup", function(){ pid = null; release(); });
+      window.addEventListener("pointercancel", function(){ pid = null; release(); });
     }else{
-      var ts = function(e){ if(e.touches.length===1) begin(e.touches[0].clientY, e.target); };
-      drawer.addEventListener("touchstart", ts, {passive:true});
+      drawer.addEventListener("touchstart", function(e){ if(e.touches.length===1) begin(e.touches[0].clientY, e.target); }, {passive:true});
       window.addEventListener("touchmove", function(e){
-        if(!active) return;
+        if(!dragging) return;
         if(move(e.touches[0].clientY) && e.cancelable) e.preventDefault();
       }, {passive:false});
-      window.addEventListener("touchend", end);
-      window.addEventListener("touchcancel", end);
+      window.addEventListener("touchend", release);
+      window.addEventListener("touchcancel", release);
     }
 
-    /* تأكيد نظافة الحالة عند أي فتح/إغلاق */
-    var _openCart = openCart;
-    window.openCart = openCart = function(){ drawer.classList.remove("dragging","snapping","closing"); clearY(); return _openCart.apply(null, arguments); };
-    var _closeAll = closeAll;
-    window.closeAll = closeAll = function(){ var r = _closeAll.apply(null, arguments); clearY(); return r; };
-  })();
+    /* ===== النقر على الفراغ فوق السلة: إغلاق مُتحرّك مع تأثير لمسة على الخلفية ===== */
+    if(ov){
+      ov.addEventListener("pointerdown", function(e){
+        if(!isMobile() || !drawer.classList.contains("open")) return;
+        if(document.getElementById("confirmClear").classList.contains("open")) return;
+        var r = document.createElement("span");
+        r.className = "ov-tap";
+        r.style.left = e.clientX + "px";
+        r.style.top  = e.clientY + "px";
+        ov.appendChild(r);
+        setTimeout(function(){ r.remove(); }, 620);
+      });
+    }
+    window.dismissCartSheet = function(){
+      if(isMobile() && drawer.classList.contains("open")){ dismiss("tap"); return true; }
+      return false;
+    };
 
+    var _openCart = openCart;
+    window.openCart = openCart = function(){
+      stopAnim(); dragging = false;
+      drawer.classList.remove("dragging","anim");
+      ov && ov.classList.remove("dragging");
+      y = 0; v = 0; clearY();
+      return _openCart.apply(null, arguments);
+    };
+    var _closeAll = closeAll;
+    window.closeAll = closeAll = function(){
+      var r = _closeAll.apply(null, arguments);
+      stopAnim(); dragging = false;
+      drawer.classList.remove("dragging","anim");
+      ov && ov.classList.remove("dragging");
+      y = 0; v = 0; clearY();
+      return r;
+    };
+  })();
   /* --- 7) إخفاء زر واتساب أثناء التمرير السريع للأسفل (شاشة أوسع) --- */
   var fab = document.getElementById("fab");
   var lastY = window.scrollY, fabHidden = false;
