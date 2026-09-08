@@ -357,10 +357,11 @@ footer a:hover{color:var(--gold-l)}
 
 /* ===== CART / MODAL ===== */
 .ov{position:fixed;inset:0;background:rgba(38,38,31,.5);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s;z-index:950}
-.ov.open{opacity:1;visibility:visible}
+.ov.open{opacity:var(--ovP,1);visibility:visible}
+.ov.dragging{transition:none}
 .drawer{position:fixed;top:0;inset-inline-end:0;height:100%;width:min(430px,100%);background:var(--ivory);z-index:960;display:flex;flex-direction:column;transform:translateX(-110%);transition:transform .35s cubic-bezier(.2,.8,.2,1);will-change:transform;box-shadow:var(--shadow)}
 html[dir="rtl"] .drawer{transform:translateX(-110%)}
-.drawer.open{transform:none!important}
+.drawer.open{transform:none}
 .dhead{display:flex;align-items:center;justify-content:space-between;padding:18px;border-bottom:1px solid var(--line)}
 .dhead h3{margin:0}
 .dhead-actions{display:flex;align-items:center;gap:8px}
@@ -632,19 +633,30 @@ section[id],footer{scroll-margin-top:calc(var(--hdr) + 12px)}
 @media (max-width:760px){
   .drawer{
     top:auto;bottom:0;inset-inline:0;width:100%;height:auto;max-height:92dvh;
-    border-radius:24px 24px 0 0;transform:translate3d(0,102%,0)!important;
-    transition:transform .4s cubic-bezier(.2,.85,.25,1);
+    border-radius:24px 24px 0 0;
+    transform:translate3d(0,102%,0);
+    transition:transform .42s cubic-bezier(.32,.72,0,1);
     box-shadow:0 -24px 60px -20px rgba(38,38,31,.5);
-    padding-bottom:var(--safe-b)
+    padding-bottom:var(--safe-b);
+    will-change:transform;backface-visibility:hidden;touch-action:pan-y
   }
-  html[dir="rtl"] .drawer{transform:translate3d(0,102%,0)!important}
-  .drawer.open,html[dir="rtl"] .drawer.open{transform:translate3d(0,0,0)!important}
-  .drawer.dragging{transition:none}
+  html[dir="rtl"] .drawer{transform:translate3d(0,102%,0)}
+  .drawer.open,html[dir="rtl"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
+  /* أثناء السحب: بلا انتقال ليتبع الإصبع 1:1 */
+  .drawer.dragging,html[dir="rtl"] .drawer.dragging{transition:none}
+  /* الرجوع للمكان: نابض ناعم */
+  .drawer.snapping,html[dir="rtl"] .drawer.snapping{transition:transform .48s cubic-bezier(.22,1.02,.3,1)}
+  /* الإغلاق بالسحب: انزلاق سريع للأسفل */
+  .drawer.closing,html[dir="rtl"] .drawer.closing{transition:transform .3s cubic-bezier(.4,0,1,1)}
   .drawer::before{
     content:"";position:absolute;top:8px;inset-inline:0;margin-inline:auto;
-    width:46px;height:5px;border-radius:999px;background:rgba(62,74,43,.22)
+    width:46px;height:5px;border-radius:999px;background:rgba(62,74,43,.22);
+    transition:width .25s ease,background .25s ease
   }
-  .dhead{padding:22px 16px 12px;touch-action:none}
+  .drawer.dragging::before{width:64px;background:rgba(62,74,43,.4)}
+  .dhead{padding:22px 16px 12px;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
+  .drawer.dragging .dhead{cursor:grabbing}
+  .items{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .dhead h3{font-size:1.08rem}
   .items{max-height:44dvh;padding:14px;gap:10px}
   .ci{grid-template-columns:58px 1fr auto;padding:9px;gap:10px}
@@ -1376,7 +1388,7 @@ function applyCoupon(){
 }
 
 /* ====== النوافذ ====== */
-const openCart = () => { $("#cart").classList.add("open"); $("#ov").classList.add("open"); document.body.classList.add("lock"); };
+var openCart = () => { $("#cart").classList.add("open"); $("#ov").classList.add("open"); document.body.classList.add("lock"); };
 const openConfirmClear = () => { $("#confirmClear").classList.add("open"); document.body.classList.add("lock"); };
 const closeConfirmClear = () => { $("#confirmClear").classList.remove("open"); if(!$("#cart").classList.contains("open") && !$("#checkout").classList.contains("open")) document.body.classList.remove("lock"); };
 function confirmClearAll(){
@@ -1385,7 +1397,7 @@ function confirmClearAll(){
   closeConfirmClear();
   toast("تم حذف جميع المنتجات من السلة");
 }
-const closeAll = () => { $("#cart").classList.remove("open"); $("#ov").classList.remove("open"); $("#checkout").classList.remove("open"); $("#confirmClear").classList.remove("open"); document.body.classList.remove("lock"); };
+var closeAll = () => { $("#cart").classList.remove("open"); $("#ov").classList.remove("open"); $("#checkout").classList.remove("open"); $("#confirmClear").classList.remove("open"); document.body.classList.remove("lock"); };
 function openCheckout(){
   if(!cart.length) return;
   $("#sum").innerHTML = cart.map(i => `<div class="row"><span>${i.name} × ${i.qty}</span><b>${money(i.price*i.qty)}</b></div>`).join("")
@@ -1446,9 +1458,9 @@ document.addEventListener("click", ev => {
   if(c) return selectCat(c);
 });
 $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); renderGrid(); });
-$("#cartBtn").onclick = openCart;
+$("#cartBtn").onclick = () => openCart();
 $("#clearCartBtn").onclick = openConfirmClear;
-$("#closeCart").onclick = closeAll;
+$("#closeCart").onclick = () => closeAll();
 $("#ov").onclick = () => { if($("#confirmClear").classList.contains("open")) closeConfirmClear(); else closeAll(); };
 $("#cancelClearBtn").onclick = closeConfirmClear;
 $("#confirmClearBtn").onclick = confirmClearAll;
@@ -1904,31 +1916,119 @@ chipsHTML(); renderGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
   updateCart = function(){ _updateCart.apply(null, arguments); syncMcart(); };
   syncMcart();
 
-  /* --- 6) سحب صفحة السلة للأسفل لإغلاقها (Swipe to dismiss) --- */
-  var drawer = document.getElementById("cart");
-  var dhead = drawer && drawer.querySelector(".dhead");
-  if(drawer && dhead){
-    var sy = 0, dy = 0, dragging = false;
-    dhead.addEventListener("touchstart", function(e){
-      if(!isMobile() || e.touches.length !== 1) return;
-      dragging = true; dy = 0; sy = e.touches[0].clientY;
-      drawer.classList.add("dragging");
-    }, {passive:true});
-    dhead.addEventListener("touchmove", function(e){
-      if(!dragging) return;
-      dy = Math.max(0, e.touches[0].clientY - sy);
-      drawer.style.transform = "translate3d(0," + dy + "px,0)";
-    }, {passive:true});
-    function endDrag(){
-      if(!dragging) return;
-      dragging = false;
-      drawer.classList.remove("dragging");
-      drawer.style.transform = "";
-      if(dy > 90) closeAll();
+  /* --- 6) سحب صفحة السلة للأسفل لإغلاقها (Swipe to dismiss) — نسخة احترافية سلسة --- */
+  (function(){
+    var drawer = document.getElementById("cart");
+    if(!drawer) return;
+    var dhead = drawer.querySelector(".dhead");
+    var list  = drawer.querySelector(".items");
+    var ov    = document.getElementById("ov");
+    var reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+    var active=false, startY=0, y=0, lastY=0, lastT=0, vel=0, raf=0, fromList=false, pid=null;
+
+    function setY(v){
+      drawer.style.setProperty("--dragY", v.toFixed(2) + "px");
+      if(ov){
+        var h = drawer.offsetHeight || 1;
+        var p = Math.max(0, 1 - (v / h) * 0.9);
+        ov.style.setProperty("--ovP", p.toFixed(3));
+      }
     }
-    dhead.addEventListener("touchend", endDrag);
-    dhead.addEventListener("touchcancel", endDrag);
-  }
+    function clearY(){
+      drawer.style.removeProperty("--dragY");
+      ov && ov.style.removeProperty("--ovP");
+    }
+    function tick(){ raf = 0; setY(y); }
+    function schedule(){ if(!raf) raf = requestAnimationFrame(tick); }
+
+    function begin(clientY, target){
+      if(!isMobile() || !drawer.classList.contains("open")) return false;
+      var inHead = !!(dhead && target && (dhead === target || dhead.contains(target)));
+      fromList = !!(list && target && list.contains(target));
+      if(!inHead && !fromList && target !== drawer) return false; // لا تسحب من الأزرار/الحقول السفلية
+      if(fromList && list.scrollTop > 0) return false;   // اترك التمرير للقائمة
+      active=true; startY=clientY; y=0; vel=0; lastY=clientY; lastT=performance.now();
+      drawer.classList.remove("snapping","closing");
+      drawer.classList.add("dragging");
+      ov && ov.classList.add("dragging");
+      return true;
+    }
+    function move(clientY){
+      if(!active) return false;
+      var d = clientY - startY;
+      if(fromList && d < 0) return false;               // سحب للأعلى داخل القائمة = تمرير عادي
+      // مقاومة مطاطية عند السحب للأعلى
+      y = d >= 0 ? d : -Math.pow(-d, 0.55);
+      var now = performance.now(), dt = now - lastT;
+      if(dt > 0){ vel = (clientY - lastY) / dt; lastY = clientY; lastT = now; }
+      schedule();
+      return true;
+    }
+    function end(){
+      if(!active) return;
+      active=false;
+      if(raf){ cancelAnimationFrame(raf); raf=0; }
+      drawer.classList.remove("dragging");
+      ov && ov.classList.remove("dragging");
+      var h = drawer.offsetHeight || 1;
+      var shouldClose = y > h * 0.28 || (vel > 0.75 && y > 40);
+      if(shouldClose){
+        drawer.classList.add("closing");
+        setY(h + 40);
+        ov && ov.style.setProperty("--ovP","0");
+        var done=false;
+        var finish = function(){
+          if(done) return; done=true;
+          drawer.removeEventListener("transitionend", finish);
+          drawer.classList.remove("closing");
+          clearY();
+          closeAll();
+        };
+        drawer.addEventListener("transitionend", finish);
+        setTimeout(finish, reduce ? 0 : 340);
+      }else{
+        drawer.classList.add("snapping");
+        setY(0);
+        var t = setTimeout(function(){
+          drawer.classList.remove("snapping");
+          clearY();
+        }, reduce ? 0 : 500);
+        void t;
+      }
+    }
+
+    /* Pointer Events (يشمل اللمس والماوس) مع بديل touch للأجهزة القديمة */
+    if(window.PointerEvent){
+      var onDown = function(e){
+        if(e.pointerType === "mouse" && e.button !== 0) return;
+        if(e.target.closest && e.target.closest("button,a,input,select,textarea")) return;
+        if(begin(e.clientY, e.target)){ pid = e.pointerId; }
+      };
+      drawer.addEventListener("pointerdown", onDown);
+      window.addEventListener("pointermove", function(e){
+        if(!active || (pid !== null && e.pointerId !== pid)) return;
+        if(move(e.clientY) && e.cancelable) e.preventDefault();
+      }, {passive:false});
+      window.addEventListener("pointerup", function(){ pid=null; end(); });
+      window.addEventListener("pointercancel", function(){ pid=null; end(); });
+    }else{
+      var ts = function(e){ if(e.touches.length===1) begin(e.touches[0].clientY, e.target); };
+      drawer.addEventListener("touchstart", ts, {passive:true});
+      window.addEventListener("touchmove", function(e){
+        if(!active) return;
+        if(move(e.touches[0].clientY) && e.cancelable) e.preventDefault();
+      }, {passive:false});
+      window.addEventListener("touchend", end);
+      window.addEventListener("touchcancel", end);
+    }
+
+    /* تأكيد نظافة الحالة عند أي فتح/إغلاق */
+    var _openCart = openCart;
+    window.openCart = openCart = function(){ drawer.classList.remove("dragging","snapping","closing"); clearY(); return _openCart.apply(null, arguments); };
+    var _closeAll = closeAll;
+    window.closeAll = closeAll = function(){ var r = _closeAll.apply(null, arguments); clearY(); return r; };
+  })();
 
   /* --- 7) إخفاء زر واتساب أثناء التمرير السريع للأسفل (شاشة أوسع) --- */
   var fab = document.getElementById("fab");
