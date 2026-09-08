@@ -880,6 +880,15 @@ html[dir="ltr"] .drawer{transform:translateX(110%)}
 html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
 @media (max-width:900px){html.lang-en .hero::after{background:linear-gradient(180deg,rgba(250,246,236,.38),rgba(250,246,236,.78) 58%,rgba(250,246,236,.94))}}
 </style>
+<script>
+/* ===== JR v35 — تفعيل نظام الحركة قبل أول رسم لمنع ظهور المحتوى قبل الكشف ===== */
+(function(){
+  var r=document.documentElement;
+  try{ if(matchMedia("(prefers-reduced-motion:reduce)").matches) return; }catch(e){}
+  r.classList.add("jr-motion");
+  setTimeout(function(){ if(!window.__jrRevealReady) r.classList.remove("jr-motion"); },5000);
+})();
+</script>
 </head>
 <body>
 
@@ -3316,56 +3325,175 @@ b,strong,.btn{font-weight:600}
 
 </style>
 
-<!-- ===== JR v34 — نظام التنقل الوحيد: فوري وخفيف على الهاتف ===== -->
-<style id="jr-nav-v34">
+<!-- ===== JR v35 — نظام حركة موحّد: كشف الأقسام + تنقّل سلس ===== -->
+<style id="jr-motion-v35">
+:root{
+  --jr-ease:cubic-bezier(.22,.61,.36,1);
+  --jr-dur:520ms;
+  --jr-shift:14px;
+  --jr-step:64ms;
+}
+@media (max-width:760px){
+  :root{--jr-dur:420ms;--jr-shift:9px;--jr-step:44ms}
+}
+
 html{scroll-behavior:auto!important;scroll-padding-top:var(--jr-head,84px)}
 section[id],footer[id]{scroll-margin-top:var(--jr-head,84px)}
 
-/* المحتوى لا يُخفى مطلقًا. لمسة الدخول الأولى تقتصر على مقدمة القسم الصغيرة. */
-@keyframes jrSectionEnter{
-  from{opacity:.72;transform:translate3d(0,6px,0)}
+/* ===== الحالة الابتدائية: المحتوى مخفي تمامًا قبل الكشف (بلا وميض) ===== */
+html.jr-motion section.sec:not(.jr-shown) > .wrap > *,
+html.jr-motion footer:not(.jr-shown) > .wrap > *{
+  opacity:0;
+  transform:translate3d(0,var(--jr-shift),0);
+}
+
+/* ===== حركة الدخول الموحّدة ===== */
+@keyframes jrIn{
+  from{opacity:0;transform:translate3d(0,var(--jr-shift),0)}
   to{opacity:1;transform:none}
 }
-.jr-section-enter > .wrap > :is(.eyebrow,h2,.lead):not(.jr-entered){
-  animation:jrSectionEnter .18s ease-out both;
+html.jr-motion section.sec.jr-shown > .wrap > *,
+html.jr-motion footer.jr-shown > .wrap > *{
+  animation:jrIn var(--jr-dur) var(--jr-ease) both;
+  will-change:opacity,transform;
 }
-.jr-section-enter > .wrap > h2{animation-delay:.018s}
-.jr-section-enter > .wrap > .lead{animation-delay:.036s}
+html.jr-motion section.sec.jr-shown > .wrap > :nth-child(2),
+html.jr-motion footer.jr-shown > .wrap > :nth-child(2){animation-delay:calc(var(--jr-step) * 1)}
+html.jr-motion section.sec.jr-shown > .wrap > :nth-child(3),
+html.jr-motion footer.jr-shown > .wrap > :nth-child(3){animation-delay:calc(var(--jr-step) * 2)}
+html.jr-motion section.sec.jr-shown > .wrap > :nth-child(4),
+html.jr-motion footer.jr-shown > .wrap > :nth-child(4){animation-delay:calc(var(--jr-step) * 3)}
+html.jr-motion section.sec.jr-shown > .wrap > :nth-child(n+5),
+html.jr-motion footer.jr-shown > .wrap > :nth-child(n+5){animation-delay:calc(var(--jr-step) * 4)}
+
+/* ===== بعد اكتمال الكشف: حالة نهائية ثابتة، بلا أي طبقات أو إعادة تشغيل ===== */
+html.jr-motion section.sec.jr-shown.jr-settled > .wrap > *,
+html.jr-motion footer.jr-shown.jr-settled > .wrap > *{
+  animation:none!important;
+  opacity:1!important;
+  transform:none!important;
+  will-change:auto!important;
+}
 
 @media (max-width:900px),(hover:none){
   header{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(250,246,236,.985)!important}
   .hero-promo,.rv-counter,.rv-nav,.rv-close,.rv-mute,.mapmodal,.ov,.mcart{
     backdrop-filter:none!important;-webkit-backdrop-filter:none!important
   }
-  /* لا تحريك لقسم كامل أو للبطاقات أثناء الانتقال. */
-  section,.sec,.card,.tile,.rev,.step,.ct,.banner{will-change:auto!important}
+  section,.sec,.card,.tile,.rev,.step,.ct,.banner{will-change:auto}
 }
+
+/* احترام تفضيل تقليل الحركة: لا إخفاء ولا حركة إطلاقًا (لا تُضاف jr-motion أصلًا) */
 @media (prefers-reduced-motion:reduce){
-  .jr-section-enter > .wrap > :is(.eyebrow,h2,.lead){animation:none!important}
+  html:not(.jr-motion) section.sec > .wrap > *,
+  html:not(.jr-motion) footer > .wrap > *{opacity:1!important;transform:none!important;animation:none!important}
 }
 </style>
 <script>
 (function(){
   "use strict";
   var root=document.documentElement;
-  var visited=new Set();
-  var enterTimer=0;
+  var motion=root.classList.contains("jr-motion");
+  window.__jrRevealReady=true;
 
-  function reduced(){
-    try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}
-  }
+  var HEAD=0;
   function headerHeight(){
-    var header=document.querySelector("header");
-    if(!header) return 0;
-    var position=getComputedStyle(header).position;
-    return position==="fixed"||position==="sticky" ? Math.round(header.getBoundingClientRect().height) : 0;
+    var h=document.querySelector("header");
+    if(!h) return 0;
+    var p=getComputedStyle(h).position;
+    return (p==="fixed"||p==="sticky") ? Math.round(h.getBoundingClientRect().height) : 0;
   }
   function syncHeader(){
-    root.style.setProperty("--jr-head",(headerHeight()+10)+"px");
+    HEAD=headerHeight();
+    root.style.setProperty("--jr-head",(HEAD+10)+"px");
   }
+  syncHeader();
+
+  var SECTIONS=[].slice.call(document.querySelectorAll("section.sec, footer"));
+  var io=null;
+
+  /* كشف القسم مرة واحدة فقط طوال الجلسة */
+  function reveal(sec){
+    if(!sec||sec.classList.contains("jr-shown")) return;
+    sec.classList.add("jr-shown");
+    if(io){ try{ io.unobserve(sec); }catch(e){} }
+    if(!motion){ sec.classList.add("jr-settled"); return; }
+    setTimeout(function(){ sec.classList.add("jr-settled"); },1200);
+  }
+  function revealAll(){ SECTIONS.forEach(reveal); }
+
+  function startObserver(){
+    if(io) return;
+    if(!("IntersectionObserver" in window)){ revealAll(); return; }
+    io=new IntersectionObserver(function(entries){
+      for(var i=0;i<entries.length;i++){
+        if(entries[i].isIntersecting) reveal(entries[i].target);
+      }
+    },{root:null,rootMargin:"0px 0px -12% 0px",threshold:0});
+    SECTIONS.forEach(function(s){
+      if(!s.classList.contains("jr-shown")){ try{ io.observe(s); }catch(e){} }
+    });
+  }
+
+  /* لا نبدأ الكشف قبل انتهاء شاشة البداية حتى لا يُهدر الكشف خلف الغطاء */
+  (function whenIntroDone(){
+    var intro=document.getElementById("intro");
+    if(window.__introDone||!intro){ startObserver(); return; }
+    var n=0;
+    var id=setInterval(function(){
+      var el=document.getElementById("intro");
+      if(window.__introDone||!el||el.classList.contains("done")||++n>90){
+        clearInterval(id);
+        startObserver();
+      }
+    },100);
+  })();
+
+  /* ===== تنقّل سلس واحد فقط ===== */
+  var raf=0;
+  function stopTween(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+  function ease(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+  function goTo(el){
+    if(!el) return;
+    var sec=(el.closest && el.closest("section.sec, footer")) || null;
+    var start=window.pageYOffset||root.scrollTop||0;
+    var maxY=Math.max(0,(document.documentElement.scrollHeight||0)-window.innerHeight);
+    var end=Math.min(maxY,Math.max(0,Math.round(el.getBoundingClientRect().top+start-HEAD-10)));
+    var dist=Math.abs(end-start);
+    stopTween();
+    if(!motion||dist<3){ window.scrollTo(0,end); reveal(sec); return; }
+    var dur=Math.max(320,Math.min(680,280+dist*0.30));
+    var t0=0,done=false;
+    function step(ts){
+      if(!t0) t0=ts;
+      var p=Math.min(1,(ts-t0)/dur);
+      window.scrollTo(0,Math.round(start+(end-start)*ease(p)));
+      if(!done&&p>0.5){ done=true; reveal(sec); }
+      if(p<1) raf=requestAnimationFrame(step);
+      else { raf=0; reveal(sec); }
+    }
+    raf=requestAnimationFrame(step);
+  }
+
+  /* المستخدم دائمًا هو المتحكم: أي تفاعل يوقف الانتقال فورًا */
+  ["wheel","touchstart","pointerdown","keydown"].forEach(function(ev){
+    window.addEventListener(ev,stopTween,{passive:true,capture:true});
+  });
+
+  window.JRScrollTo=goTo;
+  window.JRScrollToY=function(y){
+    stopTween();
+    window.scrollTo(0,Math.max(0,Math.round(y||0)));
+  };
+  window.JRGoalFor=function(el){
+    return el ? Math.max(0,Math.round(el.getBoundingClientRect().top+(window.pageYOffset||0)-HEAD-10)) : 0;
+  };
+  window.JRReveal=reveal;
+
   function targetFromHash(hash){
     if(!hash||hash==="#") return null;
-    try{return document.getElementById(decodeURIComponent(hash.slice(1)))}catch(e){return null}
+    try{ return document.getElementById(decodeURIComponent(hash.slice(1))); }catch(e){ return null; }
   }
   function closeMenu(){
     var links=document.getElementById("links");
@@ -3373,38 +3501,10 @@ section[id],footer[id]{scroll-margin-top:var(--jr-head,84px)}
     var scrim=document.querySelector(".menu-scrim");
     if(links) links.classList.remove("open");
     if(scrim) scrim.classList.remove("open");
-    if(burger){burger.setAttribute("aria-expanded","false");burger.textContent="☰"}
-    /* لا نزيل lock إذا كانت السلة أو نافذة أخرى مفتوحة. */
+    if(burger){ burger.setAttribute("aria-expanded","false"); burger.textContent="☰"; }
     var overlayOpen=document.querySelector(".drawer.open,.modal.open,.mapmodal.open,.reels-viewer.open");
     if(!overlayOpen) document.body.classList.remove("lock");
   }
-  function playFirstEntry(section){
-    if(!section||visited.has(section.id)||reduced()) return;
-    visited.add(section.id);
-    section.querySelectorAll(":scope > .wrap > :is(.eyebrow,h2,.lead)").forEach(function(el){el.classList.remove("jr-entered")});
-    section.classList.remove("jr-section-enter");
-    /* إطار واحد بعد الانتقال الفوري، بلا قراءة تخطيط أو إعادة بناء للمحتوى. */
-    requestAnimationFrame(function(){
-      section.classList.add("jr-section-enter");
-      clearTimeout(enterTimer);
-      enterTimer=setTimeout(function(){
-        section.classList.remove("jr-section-enter");
-        section.querySelectorAll(":scope > .wrap > :is(.eyebrow,h2,.lead)").forEach(function(el){el.classList.add("jr-entered")});
-      },260);
-    });
-  }
-  function goTo(element){
-    if(!element) return;
-    var section=element.closest("section,footer")||element;
-    var top=element.getBoundingClientRect().top+(window.pageYOffset||0)-headerHeight()-10;
-    window.scrollTo(0,Math.max(0,Math.round(top))); /* فوري: لا مسار تمرير طويل أو ثقيل */
-    playFirstEntry(section);
-  }
-
-  /* واجهة واحدة فقط للنداءات الداخلية الموجودة في المتجر. */
-  window.JRScrollTo=goTo;
-  window.JRScrollToY=function(y){window.scrollTo(0,Math.max(0,Math.round(y||0)))};
-  window.JRGoalFor=function(el){return el ? Math.max(0,Math.round(el.getBoundingClientRect().top+(window.pageYOffset||0)-headerHeight()-10)) : 0};
 
   document.addEventListener("click",function(event){
     var link=event.target&&event.target.closest ? event.target.closest('a[href*="#"]') : null;
@@ -3418,19 +3518,24 @@ section[id],footer[id]{scroll-margin-top:var(--jr-head,84px)}
     event.preventDefault();
     event.stopPropagation();
     closeMenu();
-    goTo(target);
-    try{history.replaceState(null,"",hash)}catch(e){}
+    /* إطار واحد بعد إغلاق القائمة: استجابة فورية بلا تنافس بين حركتين */
+    requestAnimationFrame(function(){ goTo(target); });
+    try{ history.replaceState(null,"",hash); }catch(e){}
   },true);
 
-  window.addEventListener("resize",function(){clearTimeout(syncHeader.t);syncHeader.t=setTimeout(syncHeader,120)},{passive:true});
-  window.addEventListener("orientationchange",function(){setTimeout(syncHeader,160)},{passive:true});
-  syncHeader();
+  window.addEventListener("resize",function(){
+    clearTimeout(syncHeader.t);
+    syncHeader.t=setTimeout(syncHeader,120);
+  },{passive:true});
+  window.addEventListener("orientationchange",function(){ setTimeout(syncHeader,160); },{passive:true});
 
-  /* الأقسام التي تظهر طبيعيًا أثناء التمرير تُعدّ مزارة، بلا أي مراقب أو حركة. */
-  document.querySelectorAll("section[id],footer[id]").forEach(function(section){
-    var rect=section.getBoundingClientRect();
-    if(rect.bottom>0&&rect.top<innerHeight) visited.add(section.id);
-  });
+  /* شبكة أمان: لا يبقى أي قسم مخفيًا مهما حدث */
+  setTimeout(function(){
+    SECTIONS.forEach(function(s){
+      var r=s.getBoundingClientRect();
+      if(r.bottom>0&&r.top<window.innerHeight) reveal(s);
+    });
+  },4000);
 })();
 </script>
 </body>
