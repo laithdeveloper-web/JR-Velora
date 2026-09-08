@@ -103,9 +103,8 @@ body.introing{position:fixed!important;inset:0!important;width:100%!important;to
 /* ===== قسم الريلز (فيديوهات portrait) ===== */
 .reels-lead{max-width:640px;color:var(--muted,#6b6b63);margin:6px 0 18px;line-height:1.9}
 .reels-rail{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;scroll-snap-type:x mandatory;
-  -webkit-overflow-scrolling:touch;scrollbar-width:thin}
-.reels-rail::-webkit-scrollbar{height:6px}
-.reels-rail::-webkit-scrollbar-thumb{background:rgba(110,127,78,.35);border-radius:99px}
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.reels-rail::-webkit-scrollbar{display:none}
 .reel-card{position:relative;flex:0 0 auto;width:clamp(168px,44vw,232px);aspect-ratio:9/16;border-radius:22px;overflow:hidden;
   cursor:pointer;scroll-snap-align:start;background:#1B2113;border:1px solid var(--line,rgba(0,0,0,.08));
   box-shadow:0 18px 38px -22px rgba(62,74,43,.55);transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s}
@@ -3884,6 +3883,262 @@ html.jr-rv-on .jr-arr-u:not(.jr-in):not(.in){transform:translate3d(0,34px,0)!imp
   .jr-rv{will-change:auto}
   .sec,.tile,.rev,.card,.step{backdrop-filter:none!important}
 }
+
+/* =====================================================================
+   ✦ JR CINEMATIC SECTION FILL (v26) — ظهور محتوى الأقسام كأنه يُملأ
+   ===================================================================== */
+html.jrfill-on .jrf-sec{position:relative}
+html.jrfill-on .jrf-el{
+  opacity:0;
+  transform:translate3d(0,30px,0) scale(.985);
+  filter:blur(9px);
+  transition:opacity .78s cubic-bezier(.16,1,.3,1),
+             transform .95s cubic-bezier(.16,1,.3,1),
+             filter .7s ease,
+             clip-path 1.05s cubic-bezier(.16,1,.3,1);
+  transition-delay:var(--jrf-d,0ms);
+  will-change:opacity,transform}
+html.jrfill-on .jrf-el.jrf-in{opacity:1;transform:none;filter:none}
+/* العناوين: كشف بمسح من اليمين لليسار (RTL) + خط ذهبي يُرسم */
+html.jrfill-on .jrf-ttl{clip-path:inset(0 0 0 105%)}
+html.jrfill-on .jrf-ttl.jrf-in{clip-path:inset(0 -25% 0 -2%)}
+html.jrfill-on .jrf-ttl::after{
+  content:"";position:absolute;bottom:-6px;inset-inline-start:0;height:2px;width:0;
+  background:var(--grad-gold,linear-gradient(90deg,#C6A052,#E8D7A8));
+  transition:width 1s cubic-bezier(.16,1,.3,1);transition-delay:calc(var(--jrf-d,0ms) + 260ms)}
+html.jrfill-on .jrf-ttl{position:relative}
+html.jrfill-on .jrf-ttl.jrf-in::after{width:64px}
+/* بطاقات/عناصر الشبكات: إحساس "ملء البيانات" */
+html.jrfill-on .jrf-el.jrf-card{transform:translate3d(0,34px,0) scale(.94)}
+html.jrfill-on .jrf-el.jrf-card::before{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;z-index:3;
+  background:linear-gradient(115deg,transparent 35%,rgba(232,215,168,.28) 50%,transparent 65%);
+  opacity:0;transform:translateX(-120%)}
+html.jrfill-on .jrf-el.jrf-card.jrf-in::before{
+  animation:jrfSheen 1.05s cubic-bezier(.22,.61,.36,1) forwards;
+  animation-delay:calc(var(--jrf-d,0ms) + 120ms)}
+@keyframes jrfSheen{0%{opacity:.9;transform:translateX(-120%)}100%{opacity:0;transform:translateX(120%)}}
+/* خط مسح ضوئي يمر على القسم لحظة تعبئته */
+html.jrfill-on .jrf-sec.jrf-fill::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
+  background:linear-gradient(90deg,transparent 0%,rgba(232,215,168,.14) 45%,rgba(232,215,168,.20) 50%,rgba(232,215,168,.14) 55%,transparent 100%);
+  animation:jrfScan 1.35s cubic-bezier(.22,.61,.36,1) forwards}
+@keyframes jrfScan{0%{transform:translateX(105%);opacity:0}18%{opacity:1}100%{transform:translateX(-105%);opacity:0}}
+@media (max-width:900px),(hover:none){
+  html.jrfill-on .jrf-el{
+    transform:translate3d(0,16px,0) scale(.995);filter:blur(4px);
+    transition:opacity .46s ease-out,transform .5s cubic-bezier(.22,.61,.36,1),filter .4s ease,clip-path .6s cubic-bezier(.22,.61,.36,1)}
+  html.jrfill-on .jrf-el.jrf-card{transform:translate3d(0,20px,0) scale(.97)}
+  html.jrfill-on .jrf-sec.jrf-fill::after{animation-duration:.9s}
+}
+@media (prefers-reduced-motion:reduce){
+  html.jrfill-on .jrf-el{opacity:1!important;transform:none!important;filter:none!important;clip-path:none!important}
+  html.jrfill-on .jrf-sec.jrf-fill::after{display:none}
+}
 </style>
+
+<script>
+/* ===================================================================
+   ✦ JR CINEMATIC SECTION FILL ENGINE (v26)
+   يخفي محتوى كل قسم ثم يعبّئه بتتابع أنيق عند التمرير إليه أو النقر عليه
+   =================================================================== */
+(function(){
+  if(!("IntersectionObserver" in window)) return;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  var root = document.documentElement;
+  var CARD = ".card,.tile,.step,.rev,.ct,.reel,.reel-card,.chip,.banner";
+  var SEL = [
+    ".eyebrow","h2","h3",".lead",".reels-lead",".reels-hint",".toolbar",".empty",
+    ".grid > *",".cols > *",".steps > *",".revs > *",".reels-rail > *",
+    ".banner",".about > img",".about > div > *",".ct",".map",".map-wrap",
+    ".wrap > p",".wrap > .btn","form > *","footer .wrap > div",".fbot"
+  ].join(",");
+
+  function claim(el){
+    el.classList.remove("reveal","jr-rv");
+    el.classList.add("in","jr-in");
+    el.removeAttribute("data-reveal");
+    el.style.transitionDelay = "";
+  }
+
+  function targets(sec){
+    var list = Array.prototype.slice.call(sec.querySelectorAll(SEL));
+    return list.filter(function(el){
+      if(el.closest(".modal,.drawer,#intro,.rv-track,.hero")) return false;
+      var p = el.parentElement;
+      while(p && p !== sec){ if(list.indexOf(p) > -1) return false; p = p.parentElement; }
+      return true;
+    });
+  }
+
+  function prep(sec){
+    var list = targets(sec), added = [];
+    list.forEach(function(el,i){
+      if(el.getAttribute("data-jrf")) return;
+      el.setAttribute("data-jrf","1");
+      claim(el);
+      el.classList.add("jrf-el");
+      if(el.tagName === "H2") el.classList.add("jrf-ttl");
+      if(el.matches(CARD)) el.classList.add("jrf-card");
+      var step = window.innerWidth < 900 ? 45 : 80;
+      el.style.setProperty("--jrf-d", Math.min(i*step, 900) + "ms");
+      added.push(el);
+    });
+    if(sec.classList.contains("jrf-done") && added.length){
+      requestAnimationFrame(function(){
+        added.forEach(function(el){ el.classList.add("jrf-in"); });
+      });
+    }
+  }
+
+  function fill(sec){
+    if(!sec || !sec.classList.contains("jrf-sec")) return;
+    sec.classList.add("jrf-done");
+    if(!sec.getAttribute("data-jrf-scanned")){
+      sec.setAttribute("data-jrf-scanned","1");
+      sec.classList.add("jrf-fill");
+      setTimeout(function(){ sec.classList.remove("jrf-fill"); }, 1600);
+    }
+    sec.querySelectorAll(".jrf-el:not(.jrf-in)").forEach(function(el){ el.classList.add("jrf-in"); });
+  }
+
+  function start(){
+    if(reduce) return;
+    root.classList.add("jrfill-on");
+    var secs = Array.prototype.slice.call(document.querySelectorAll("section, footer")).filter(function(s){
+      return !s.closest(".modal,.drawer") && !s.classList.contains("hero") && s.id !== "top";
+    });
+    secs.forEach(function(s){ s.classList.add("jrf-sec"); prep(s); });
+
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ fill(e.target); io.unobserve(e.target); }
+      });
+    }, {threshold:0.08, rootMargin:"0px 0px -8% 0px"});
+
+    secs.forEach(function(s){
+      var r = s.getBoundingClientRect();
+      if(r.top < innerHeight * 0.92 && r.bottom > 0) setTimeout(function(){ fill(s); }, 120);
+      else io.observe(s);
+    });
+
+    /* النقر على أي رابط قسم يعبّئه فورًا */
+    document.addEventListener("click", function(ev){
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href*="#"]') : null;
+      if(!a) return;
+      var href = a.getAttribute("href") || "";
+      var i = href.indexOf("#");
+      if(i < 0) return;
+      var id = decodeURIComponent(href.slice(i+1));
+      if(!id) return;
+      var t = document.getElementById(id);
+      if(!t) return;
+      var sec = t.closest("section, footer") || t;
+      setTimeout(function(){ fill(sec); }, 260);
+      setTimeout(function(){ fill(sec); }, 700);
+    }, true);
+
+    /* المحتوى الديناميكي (المنتجات، الآراء، الفيديوهات، الفلاتر) */
+    ["grid","revsGrid","reelsRail","chips"].forEach(function(id){
+      var n = document.getElementById(id);
+      if(!n) return;
+      new MutationObserver(function(){
+        var sec = n.closest("section");
+        if(!sec) return;
+        prep(sec);
+        var r = sec.getBoundingClientRect();
+        if(sec.classList.contains("jrf-done") || (r.top < innerHeight && r.bottom > 0)) fill(sec);
+      }).observe(n, {childList:true});
+    });
+
+    /* أمان: لا يبقى أي محتوى مخفيًا */
+    setTimeout(function(){
+      document.querySelectorAll(".jrf-el:not(.jrf-in)").forEach(function(el){
+        var r = el.getBoundingClientRect();
+        if(r.top < innerHeight * 1.2) el.classList.add("jrf-in");
+      });
+    }, 4000);
+    window.addEventListener("pageshow", function(){
+      setTimeout(function(){
+        document.querySelectorAll("section.jrf-sec, footer.jrf-sec").forEach(function(s){
+          var r = s.getBoundingClientRect();
+          if(r.top < innerHeight && r.bottom > 0) fill(s);
+        });
+      }, 200);
+    });
+  }
+
+  if(document.readyState === "complete") setTimeout(start, 120);
+  else window.addEventListener("load", function(){ setTimeout(start, 120); });
+})();
+</script>
 </body>
 </html>
+
+<!-- ===== JR v28 — انتقال سينمائي ناعم عند النقر على القسم ===== -->
+<style>
+#jrVeil{position:fixed;inset:0;z-index:9998;pointer-events:none;opacity:0;
+  background:radial-gradient(120% 80% at 50% 0%,rgba(212,175,55,.10),transparent 60%),
+             linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,0) 45%,rgba(0,0,0,.28));
+  backdrop-filter:blur(0px);transition:opacity .55s cubic-bezier(.22,.61,.36,1),backdrop-filter .55s ease}
+#jrVeil.on{opacity:1;backdrop-filter:blur(2.5px)}
+#jrVeil .beam{position:absolute;left:-30%;right:-30%;height:38vh;top:-40vh;
+  background:linear-gradient(180deg,transparent,rgba(212,175,55,.22),rgba(255,255,255,.10),transparent);
+  filter:blur(14px);opacity:0}
+#jrVeil.on .beam{animation:jrBeam 1.5s cubic-bezier(.3,.9,.2,1) forwards}
+@keyframes jrBeam{0%{top:-45vh;opacity:0}25%{opacity:.95}100%{top:115vh;opacity:0}}
+.jr-focus{animation:jrFocus 1.25s cubic-bezier(.22,.61,.36,1)}
+@keyframes jrFocus{0%{transform:scale(.985);filter:saturate(.85) brightness(.92)}
+  55%{transform:scale(1.004);filter:saturate(1.05) brightness(1.02)}
+  100%{transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){#jrVeil,.jr-focus{display:none;animation:none!important}}
+</style>
+<script>
+(function(){
+  var root=document.documentElement;
+  function reduce(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
+  var veil=document.createElement("div");veil.id="jrVeil";veil.innerHTML='<span class="beam"></span>';
+  document.body.appendChild(veil);
+  var orig=window.JRScrollTo, busy=0;
+  function headerH(){var h=document.querySelector("header");if(!h)return 0;var cs=getComputedStyle(h);
+    if(cs.position!=="sticky"&&cs.position!=="fixed")return 0;return Math.round(h.getBoundingClientRect().height);}
+  function goalFor(el){var max=Math.max(0,(root.scrollHeight||0)-window.innerHeight);
+    var y=el.getBoundingClientRect().top+(window.pageYOffset||root.scrollTop||0)-headerH()-10;
+    return Math.max(0,Math.min(Math.round(y),max));}
+  function easeInOutCubic(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;}
+
+  window.JRScrollTo=function(el){
+    if(!el||reduce()||typeof orig!=="function"){ if(orig) orig(el); return; }
+    var id=++busy;
+    var from=window.pageYOffset||root.scrollTop||0;
+    var target=goalFor(el);
+    var dir=target>=from?1:-1;
+    var stop=target-dir*110;                 /* نتوقف قبل الهدف قليلًا ليكمل الأصل الحركة + كشف المحتوى */
+    var dist=stop-from;
+    veil.classList.add("on");
+    var dur=Math.min(1750,Math.max(950,700+Math.abs(target-from)*0.42));
+    if(Math.abs(dist)<24){ veil.classList.remove("on"); orig(el); glow(el); return; }
+    var t0=null; root.classList.add("no-smooth");
+    function cancel(){ if(id===busy){ busy++; root.classList.remove("no-smooth"); veil.classList.remove("on"); } }
+    ["wheel","touchstart","keydown"].forEach(function(ev){window.addEventListener(ev,cancel,{once:true,passive:true});});
+    requestAnimationFrame(function step(now){
+      if(id!==busy) return;
+      if(t0===null)t0=now;
+      var p=Math.min(1,(now-t0)/dur);
+      window.scrollTo(0,Math.round(from+dist*easeInOutCubic(p)));
+      if(p<1) requestAnimationFrame(step);
+      else{
+        root.classList.remove("no-smooth");
+        veil.classList.remove("on");
+        orig(el);            /* المسافة الأخيرة + الأنيميشن المتتابع للمحتوى */
+        glow(el);
+      }
+    });
+  };
+  function glow(el){
+    try{ el.classList.remove("jr-focus"); void el.offsetWidth; el.classList.add("jr-focus");
+      setTimeout(function(){ el.classList.remove("jr-focus"); },1400);
+    }catch(e){}
+  }
+})();
+</script>
