@@ -1480,7 +1480,7 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
       <div class="field"><label>وصف إضافي للعنوان (اختياري)</label><input name="addrnote" placeholder="رقم البناية، الطابق، أقرب معلم"></div>
       <div class="field"><label>طريقة الدفع</label><select name="pay"><option>الدفع عند الاستلام</option><option>تحويل بنكي / محفظة إلكترونية</option></select></div>
       <div class="field"><label>ملاحظات</label><textarea name="note" rows="2" placeholder="أي تفاصيل إضافية…"></textarea></div>
-      <button class="btn" type="submit" style="width:100%">إرسال الطلب عبر واتساب 💬</button>
+      <button class="btn confirm-order-btn" type="submit" id="submitOrderBtn" style="width:100%"><span class="cob-label">تأكيد الطلب ✓</span><span class="cob-spin" aria-hidden="true"></span></button>
     </form>
   </div>
 </div>
@@ -1505,6 +1505,87 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
       <div class="mapaddr" id="mapAddr">حرّكي الخريطة حتى يستقر الدبوس على موقعكِ بالضبط.</div>
       <button class="btn" type="button" id="mapConfirm">تأكيد هذا الموقع ✓</button>
     </div>
+  </div>
+</div>
+
+<style>
+/* ===== زر تأكيد الطلب ===== */
+.confirm-order-btn{position:relative;overflow:hidden}
+.confirm-order-btn .cob-spin{display:none;width:20px;height:20px;border-radius:50%;
+  border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:cobSpin .7s linear infinite}
+.confirm-order-btn.is-loading .cob-label{opacity:.55}
+.confirm-order-btn.is-loading .cob-spin{display:inline-block}
+.confirm-order-btn[disabled]{cursor:progress}
+@keyframes cobSpin{to{transform:rotate(360deg)}}
+
+/* ===== نافذة الشكر ===== */
+.thanks{position:fixed;inset:0;z-index:3000;display:none;align-items:center;justify-content:center;padding:18px;
+  background:rgba(30,36,20,.55);backdrop-filter:blur(8px);opacity:0;transition:opacity .35s ease}
+.thanks.open{display:flex;opacity:1}
+.thanks-card{position:relative;width:min(430px,100%);background:var(--paper,#FAF6EC);border:1px solid var(--line,rgba(0,0,0,.08));
+  border-radius:26px;padding:30px 22px 24px;text-align:center;box-shadow:0 40px 90px -35px rgba(30,36,20,.65);
+  transform:translateY(26px) scale(.94);opacity:0;transition:transform .5s cubic-bezier(.2,.9,.25,1.2),opacity .4s ease;overflow:hidden}
+.thanks.open .thanks-card{transform:none;opacity:1}
+.thanks-card::before{content:"";position:absolute;inset:-40% -20% auto -20%;height:60%;
+  background:radial-gradient(closest-side,rgba(198,160,82,.22),transparent);pointer-events:none}
+.thanks-ring{position:relative;width:104px;height:104px;margin:0 auto 6px;border-radius:50%;
+  display:grid;place-items:center;background:radial-gradient(circle,rgba(110,127,78,.14),rgba(110,127,78,0) 70%)}
+.thanks-ring::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(110,127,78,.35);
+  animation:thPulse 2.2s ease-out infinite}
+@keyframes thPulse{0%{transform:scale(.85);opacity:.85}70%{transform:scale(1.35);opacity:0}100%{opacity:0}}
+.thanks-ring svg{width:104px;height:104px;position:relative;z-index:1}
+.thanks-ring .th-circle{fill:none;stroke:#6E7F4E;stroke-width:3.5;stroke-linecap:round;
+  stroke-dasharray:301;stroke-dashoffset:301}
+.thanks-ring .th-check{fill:none;stroke:#6E7F4E;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:60;stroke-dashoffset:60}
+.thanks.open .th-circle{animation:thDraw .45s cubic-bezier(.65,0,.35,1) forwards}
+.thanks.open .th-check{animation:thDraw .28s cubic-bezier(.65,0,.35,1) .3s forwards}
+@keyframes thDraw{to{stroke-dashoffset:0}}
+.thanks-card h3{margin:12px 0 6px;font-size:1.45rem}
+.thanks-card p{margin:0 auto;max-width:34ch;color:var(--muted,#6b6b60);font-size:.96rem;line-height:1.75}
+.thanks-num{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:9px 16px;border-radius:999px;
+  background:rgba(110,127,78,.10);border:1px solid rgba(110,127,78,.22);font-weight:800;letter-spacing:.04em}
+.thanks-total{margin-top:8px;font-weight:800;color:#3E4A2B}
+.thanks-steps{margin:18px 0 4px;text-align:start;display:grid;gap:10px}
+.thanks-step{display:flex;align-items:flex-start;gap:10px;font-size:.9rem;color:var(--muted,#6b6b60);
+  opacity:0;transform:translateY(10px)}
+.thanks.open .thanks-step{animation:thUp .34s ease forwards}
+.thanks.open .thanks-step:nth-child(1){animation-delay:.34s}
+.thanks.open .thanks-step:nth-child(2){animation-delay:.44s}
+.thanks.open .thanks-step:nth-child(3){animation-delay:.54s}
+@keyframes thUp{to{opacity:1;transform:none}}
+.thanks-step i{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(198,160,82,.18);font-style:normal;font-size:.8rem}
+.thanks-card .btn{width:100%;margin-top:16px}
+.thanks-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit}
+.thanks-conf span{position:absolute;top:-12px;width:8px;height:14px;border-radius:2px;opacity:0;
+  animation:thFall linear forwards}
+@keyframes thFall{0%{opacity:0;transform:translateY(-20px) rotate(0)}
+  10%{opacity:1}100%{opacity:0;transform:translateY(420px) rotate(680deg)}}
+@media (prefers-reduced-motion:reduce){.thanks *,.thanks-card{animation:none!important;transition:none!important}
+  .th-circle,.th-check{stroke-dashoffset:0!important}.thanks-step{opacity:1!important;transform:none!important}}
+</style>
+
+<!-- نافذة الشكر بعد تأكيد الطلب -->
+<div class="thanks" id="thanks" role="dialog" aria-modal="true" aria-labelledby="thanksTitle">
+  <div class="thanks-card">
+    <div class="thanks-conf" id="thanksConf"></div>
+    <div class="thanks-ring">
+      <svg viewBox="0 0 104 104" aria-hidden="true">
+        <circle class="th-circle" cx="52" cy="52" r="48"></circle>
+        <path class="th-check" d="M32 53.5 L46 67 L73 39"></path>
+      </svg>
+    </div>
+    <h3 id="thanksTitle">تم استلام طلبكِ 🌿</h3>
+    <p>شكرًا لثقتكِ بـ JR Vélora — وصلنا طلبكِ بنجاح وسنبدأ بتجهيزه فورًا.</p>
+    <div class="thanks-num">رقم الطلب: <b id="thanksNum">—</b></div>
+    <div class="thanks-total" id="thanksTotal"></div>
+    <div class="thanks-steps">
+      <div class="thanks-step"><i>1</i><span>تم تسجيل طلبكِ في نظامنا وظهر مباشرة على لوحة الطلبات.</span></div>
+      <div class="thanks-step"><i>2</i><span>سيتواصل معكِ فريقنا لتأكيد التفاصيل خلال وقت قصير.</span></div>
+      <div class="thanks-step"><i>3</i><span>عينة مجانية مرفقة مع كل طلب 🎁</span></div>
+    </div>
+    <button class="btn" type="button" id="thanksClose">متابعة التسوّق</button>
   </div>
 </div>
 
@@ -1841,10 +1922,11 @@ function toast(msg){
   clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 2400);
 }
 
-/* ====== إرسال الطلب ====== */
-function placeOrder(e){
+/* ====== تأكيد الطلب وإرساله إلى السيرفر ====== */
+async function placeOrder(e){
   e.preventDefault();
-  const f = new FormData(e.target);
+  const form = e.target;
+  const f = new FormData(form);
   const ctry = currentCountry();
   const phone = normalizePhone(ctry, f.get("phone"));
   if(!phone){
@@ -1853,54 +1935,96 @@ function placeOrder(e){
   }
   clearPhoneError();
   if(!pickedLoc){ showLocError("الرجاء تحديد موقع التوصيل على الخريطة أولًا"); return; }
-  const lines = cart.map(i => `• ${i.name} × ${i.qty} = ${money(i.price*i.qty)}`).join("\n");
-  const msg =
-`🛍 *طلب جديد — JR Vélora*
 
-*المنتجات:*
-${lines}
+  const btn = form.querySelector('button[type="submit"]');
+  if(btn && btn.disabled) return;
+  if(btn){ btn.disabled = true; btn.classList.add("is-loading"); }
 
-المجموع الفرعي: ${money(subtotal())}
-${discount()>0 ? "الخصم ("+coupon+"): − "+money(discount())+"\n" : ""}التوصيل: ${shipping()===0?"مجاني":money(shipping())}
-*الإجمالي: ${money(total())}*
-
-*بيانات العميلة:*
-الاسم: ${f.get("name")}
-الهاتف: ${phone}
-المدينة: ${f.get("city")}
-العنوان: ${f.get("address")}
-${f.get("addrnote") ? "تفاصيل العنوان: "+f.get("addrnote")+"\n" : ""}📍 الموقع على الخرائط: ${f.get("maplink")}
-الدفع: ${f.get("pay")}
-ملاحظات: ${f.get("note") || "—"}`;
-  /* إرسال نسخة من الطلب إلى السيرفر (لا يعطّل إرسال واتساب في حال فشل الاتصال) */
   const orderNumber = "JR-" + Math.floor(1000 + Math.random()*9000);
+  const orderTotal  = total();
+  const order = {
+    number: orderNumber,
+    at: new Date().toISOString(),
+    items: cart.map(i => {
+      const p = PRODUCTS.find(x => String(x.id) === String(i.id));
+      return {
+        id: i.id,
+        name: i.name || (p && p.name) || "",
+        category: (p && (CATS.find(c => c.id === p.cat)||{}).name) || (p && p.cat) || "",
+        qty: Number(i.qty) || 1,
+        price: Number(i.price) || 0
+      };
+    }),
+    coupon: coupon || "",
+    subtotal: subtotal(),
+    shipping: shipping(),
+    discount: discount(),
+    total: orderTotal,
+    customer: Object.assign(Object.fromEntries(f), { phone: phone })
+  };
+
+  // نُرسل الطلب للسيرفر ولا ننتظر طويلًا: كحد أقصى ٦٠٠ مللي ثانية ثم نُظهر نافذة الشكر فورًا
+  const sending = sendOrderToServer(order).catch(err => {
+    if(/^https?:\/\//i.test(API_URL||"")) return { __failed:true };
+    return null;
+  });
+  const quick = await Promise.race([
+    sending,
+    new Promise(res => setTimeout(()=>res("__timeout"), 600))
+  ]);
+
+  if(btn){ btn.disabled = false; btn.classList.remove("is-loading"); }
+
+  if(quick && quick.__failed){
+    toast("تعذّر إرسال الطلب، تحقّقي من الاتصال وحاولي مرة أخرى");
+    return;
+  }
+  // لو تأخّر السيرفر نكمل بتفاؤل، وننبّه فقط إذا فشل الإرسال لاحقًا
+  if(quick === "__timeout"){
+    sending.then(r => { if(r && r.__failed) toast("تعذّر إرسال الطلب، سنحاول التواصل معكِ للتأكيد"); });
+  }
+
   try{
-    sendOrderToServer({
-      number: orderNumber,
-      at: new Date().toISOString(),
-      items: cart.map(i => {
-        const p = PRODUCTS.find(x => String(x.id) === String(i.id));
-        return {
-          id: i.id,
-          name: i.name || (p && p.name) || "",
-          category: (p && (CATS.find(c => c.id === p.cat)||{}).name) || (p && p.cat) || "",
-          qty: Number(i.qty) || 1,
-          price: Number(i.price) || 0
-        };
-      }),
-      coupon: coupon || "",
-      subtotal: subtotal(),
-      shipping: shipping(),
-      discount: discount(),
-      total: total(),
-      customer: Object.assign(Object.fromEntries(f), { phone: phone })
-    }).catch(function(){});
+    const o = JSON.parse(localStorage.getItem("velora_orders")||"[]");
+    o.push({at:new Date().toISOString(), number:orderNumber, items:cart, total:orderTotal});
+    localStorage.setItem("velora_orders", JSON.stringify(o));
   }catch(err){}
-  window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`, "_blank");
-  try{ const o = JSON.parse(localStorage.getItem("velora_orders")||"[]"); o.push({at:new Date().toISOString(), items:cart, total:total()}); localStorage.setItem("velora_orders", JSON.stringify(o)); }catch(err){}
+
   cart = []; coupon = null; updateCart(); renderGrid(); closeAll();
-  toast("تم إرسال طلبكِ ✓ سنؤكده عبر واتساب");
-  e.target.reset(); resetLocation();
+  form.reset(); resetLocation();
+  showThanks(orderNumber, orderTotal);
+}
+
+/* ====== نافذة الشكر ====== */
+function showThanks(orderNumber, orderTotal){
+  const box = $("#thanks");
+  if(!box) return;
+  const n = $("#thanksNum"); if(n) n.textContent = orderNumber;
+  const t = $("#thanksTotal"); if(t) t.textContent = (currentLang && currentLang() === "en" ? "Order total: " : "إجمالي الطلب: ") + money(orderTotal);
+  const conf = $("#thanksConf");
+  if(conf){
+    conf.innerHTML = "";
+    const colors = ["#6E7F4E","#C6A052","#3E4A2B","#E4D6AE","#8FA063"];
+    for(let i=0;i<26;i++){
+      const s = document.createElement("span");
+      s.style.left = (Math.random()*100) + "%";
+      s.style.background = colors[i % colors.length];
+      s.style.animationDelay = (0.05 + Math.random()*0.45).toFixed(2) + "s";
+      s.style.animationDuration = (1.2 + Math.random()*0.9).toFixed(2) + "s";
+      s.style.transform = "rotate(" + Math.floor(Math.random()*360) + "deg)";
+      conf.appendChild(s);
+    }
+  }
+  document.body.classList.add("lock");
+  box.classList.add("open");
+  try{ if(navigator.vibrate) navigator.vibrate([18,60,26]); }catch(err){}
+  setTimeout(()=>{ const b = $("#thanksClose"); if(b) b.focus(); }, 320);
+}
+function hideThanks(){
+  const box = $("#thanks");
+  if(!box) return;
+  box.classList.remove("open");
+  document.body.classList.remove("lock");
 }
 
 /* ====== إرسال الطلب إلى سيرفر Google Apps Script (لا يؤثر على إرسال واتساب أعلاه) ====== */
@@ -2015,6 +2139,8 @@ $("#ov").onclick = () => { if($("#confirmClear").classList.contains("open")) ret
 $("#cancelClearBtn").onclick = closeConfirmClear;
 $("#confirmClearBtn").onclick = confirmClearAll;
 $("#closeCheckout").onclick = closeAll;
+$("#thanksClose").onclick = hideThanks;
+$("#thanks").addEventListener("click", e => { if(e.target.id === "thanks") hideThanks(); });
 $("#checkoutBtn").onclick = openCheckout;
 $("#applyCoupon").onclick = applyCoupon;
 $("#orderForm").addEventListener("submit", placeOrder);
@@ -2364,7 +2490,7 @@ document.querySelectorAll("#links a").forEach(a => a.onclick = () => $("#links")
   schedule();
 })();
 
-document.addEventListener("keydown", e => { if(e.key === "Escape"){ if($("#confirmClear").classList.contains("open")) closeConfirmClear(); else closeAll(); } });
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ if($("#thanks").classList.contains("open")) hideThanks(); else if($("#confirmClear").classList.contains("open")) closeConfirmClear(); else closeAll(); } });
 
 const waHref = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent("مرحبًا JR Vélora 🌿 أرغب بالاستفسار عن المنتجات")}`;
 ["#waLink","#waLink2","#fab"].forEach(s => { const el = $(s); if(el) el.href = waHref; });
@@ -3456,7 +3582,15 @@ body.jr-swapping{filter:blur(7px) saturate(.9);transition:filter .38s ease}
     "تحويل بنكي / محفظة إلكترونية":"Bank transfer / e-wallet",
     "ملاحظات":"Notes",
     "أي تفاصيل إضافية…":"Any extra details…",
-    "إرسال الطلب عبر واتساب 💬":"Send the order on WhatsApp 💬",
+    "تأكيد الطلب ✓":"Confirm order ✓",
+    "تم استلام طلبكِ 🌿":"Your order is in 🌿",
+    "شكرًا لثقتكِ بـ JR Vélora — وصلنا طلبكِ بنجاح وسنبدأ بتجهيزه فورًا.":"Thank you for trusting JR Vélora — your order reached us and we are preparing it right away.",
+    "رقم الطلب:":"Order number:",
+    "تم تسجيل طلبكِ في نظامنا وظهر مباشرة على لوحة الطلبات.":"Your order is saved in our system and already visible on the orders dashboard.",
+    "سيتواصل معكِ فريقنا لتأكيد التفاصيل خلال وقت قصير.":"Our team will contact you shortly to confirm the details.",
+    "عينة مجانية مرفقة مع كل طلب 🎁":"A free sample comes with every order 🎁",
+    "متابعة التسوّق":"Continue shopping",
+    "تعذّر إرسال الطلب، تحقّقي من الاتصال وحاولي مرة أخرى":"We could not send the order, please check your connection and try again",
     "تم إرسال طلبكِ ✓ سنؤكده عبر واتساب":"Your order was sent ✓ we will confirm it on WhatsApp",
 
     /* الخريطة */
