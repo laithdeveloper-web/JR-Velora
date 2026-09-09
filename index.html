@@ -1050,9 +1050,16 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
       transform:translate3d(0,10px,0) scale(.995)!important;
       transition:opacity .28s ease-out,transform .3s cubic-bezier(.22,.61,.36,1)!important;
       transition-delay:0ms!important;
+      will-change:auto!important;
     }
     html.jrfill-on .jrf-el.jrf-card {
       transform:translate3d(0,12px,0) scale(.985)!important;
+    }
+    /* الإظهار الأساسي يبقى فعالًا؛ المؤثرات الإضافية الثقيلة لا تعمل أثناء التمرير */
+    html.jrfill-on .jrf-el.jrf-card::before,
+    html.jrfill-on .jrf-sec.jrf-fill::after {
+      display:none!important;
+      animation:none!important;
     }
     html.jrfill-on .jrf-ttl,
     html.jrfill-on .jrf-ttl.jrf-in {
@@ -1068,6 +1075,8 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
     #grid > .card.pop-in {
       animation-duration:.3s!important;
       animation-delay:0ms!important;
+      filter:none!important;
+      will-change:auto!important;
     }
   }
 
@@ -4206,9 +4215,14 @@ html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
 <!-- ===== JR MOBILE SECTION NAV FINAL OVERRIDE v33 ===== -->
 <script>
 (function(){
-  var root=document.documentElement, frame=0;
+  /*
+   * الإصلاح الجذري:
+   * لا نحرّك الصفحة يدويًا عبر requestAnimationFrame وscrollTo في كل إطار.
+   * هذا الأسلوب كان يتنافس مع compositing والـ scroll handlers على الموبايل.
+   * نعيد التحكم لمحرك المتصفح الأصلي؛ فهو الأكثر سلاسة على iOS وAndroid.
+   */
+  var root=document.documentElement;
   function reduced(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
-  function mobile(){try{return matchMedia("(max-width:900px),(hover:none)").matches}catch(e){return innerWidth<900}}
   function headerHeight(){
     var h=document.querySelector("header"); if(!h)return 0;
     var cs=getComputedStyle(h);
@@ -4220,21 +4234,18 @@ html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
   }
   window.JRScrollTo=function(el){
     if(!el)return;
-    if(frame)cancelAnimationFrame(frame);
-    var from=pageYOffset||root.scrollTop||0, to=target(el), d=Math.abs(to-from);
-    if(reduced()||d<8){scrollTo(0,to);return}
-    var duration=mobile()?Math.min(380,Math.max(210,170+d*.055))
-      :Math.min(680,Math.max(320,250+d*.075)), start=0;
-    root.classList.add("no-smooth");
-    function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
-    function step(now){
-      if(!start)start=now;
-      var p=Math.min(1,(now-start)/duration);
-      scrollTo(0,Math.round(from+(to-from)*ease(p)));
-      if(p<1)frame=requestAnimationFrame(step);
-      else{frame=0;root.classList.remove("no-smooth")}
+    root.classList.remove("no-smooth");
+    var to=target(el);
+    var current=pageYOffset||root.scrollTop||0;
+    if(reduced()||Math.abs(to-current)<8){
+      window.scrollTo(0,to);
+      return;
     }
-    frame=requestAnimationFrame(step);
+    try{
+      window.scrollTo({top:to,left:0,behavior:"smooth"});
+    }catch(e){
+      window.scrollTo(0,to);
+    }
   };
 })();
 </script>
@@ -4267,10 +4278,8 @@ html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
     e.stopPropagation();
     closeMenu();
     requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        window.JRScrollTo(el);
-        try{history.replaceState(null,"","#"+id);}catch(err){}
-      });
+      window.JRScrollTo(el);
+      try{history.replaceState(null,"","#"+id);}catch(err){}
     });
   }, true);
 })();
