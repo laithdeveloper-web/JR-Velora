@@ -4217,34 +4217,22 @@ html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
 (function(){
   /*
    * الإصلاح الجذري:
-   * لا نحرّك الصفحة يدويًا عبر requestAnimationFrame وscrollTo في كل إطار.
-   * هذا الأسلوب كان يتنافس مع compositing والـ scroll handlers على الموبايل.
-   * نعيد التحكم لمحرك المتصفح الأصلي؛ فهو الأكثر سلاسة على iOS وAndroid.
+   * نعيد التحكم لمحرك المتصفح الأصلي، بنفس أسلوب الكود المرجعي:
+   * scrollIntoView + scroll-margin-top بدل أي تحريك يدوي للإطارات.
    */
   var root=document.documentElement;
   function reduced(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
-  function headerHeight(){
-    var h=document.querySelector("header"); if(!h)return 0;
-    var cs=getComputedStyle(h);
-    return (cs.position==="fixed"||cs.position==="sticky")?Math.round(h.getBoundingClientRect().height):0;
-  }
-  function target(el){
-    var y=el.getBoundingClientRect().top+(pageYOffset||root.scrollTop||0)-headerHeight()-10;
-    return Math.max(0,Math.min(Math.round(y),(root.scrollHeight||0)-innerHeight));
-  }
   window.JRScrollTo=function(el){
     if(!el)return;
     root.classList.remove("no-smooth");
-    var to=target(el);
-    var current=pageYOffset||root.scrollTop||0;
-    if(reduced()||Math.abs(to-current)<8){
-      window.scrollTo(0,to);
-      return;
-    }
     try{
-      window.scrollTo({top:to,left:0,behavior:"smooth"});
+      el.scrollIntoView({
+        behavior:reduced() ? "auto" : "smooth",
+        block:"start",
+        inline:"nearest"
+      });
     }catch(e){
-      window.scrollTo(0,to);
+      el.scrollIntoView();
     }
   };
 })();
@@ -4282,5 +4270,145 @@ html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
       try{history.replaceState(null,"","#"+id);}catch(err){}
     });
   }, true);
+})();
+</script>
+
+<!-- ===== JR REFERENCE MOBILE MOTION v34 =====
+     نفس منطق الكود المرجعي:
+     IntersectionObserver + opacity/translate reveal + stagger خفيف.
+     لا يوجد blur أو تحريك يدوي للصفحة على الموبايل.
+-->
+<style id="jr-reference-mobile-motion">
+  @media (max-width:900px),(hover:none){
+    html.jr-reference-motion .jr-ref-item,
+    html.jr-reference-motion.jrfill-on .jrf-el {
+      opacity:0!important;
+      transform:translate3d(0,42px,0)!important;
+      filter:none!important;
+      will-change:transform,opacity;
+      transition:
+        opacity .9s cubic-bezier(.22,.61,.36,1),
+        transform 1.05s cubic-bezier(.22,.61,.36,1)!important;
+      transition-delay:var(--jr-ref-delay,0ms)!important;
+    }
+    html.jr-reference-motion .jr-ref-item.jr-ref-in,
+    html.jr-reference-motion.jrfill-on .jrf-el.jr-ref-in {
+      opacity:1!important;
+      transform:none!important;
+      filter:none!important;
+      will-change:auto;
+    }
+    /* نحتفظ بحركة ظهور المحتوى الأساسية ونلغي المؤثرات المضافة الثقيلة */
+    html.jr-reference-motion .jrf-el.jrf-card::before,
+    html.jr-reference-motion .jrf-sec.jrf-fill::after {
+      display:none!important;
+      animation:none!important;
+    }
+  }
+  @media (prefers-reduced-motion:reduce){
+    html.jr-reference-motion .jr-ref-item,
+    html.jr-reference-motion .jr-ref-item.jr-ref-in {
+      opacity:1!important;
+      transform:none!important;
+      filter:none!important;
+      transition:none!important;
+    }
+  }
+</style>
+<script>
+(function(){
+  "use strict";
+  var root=document.documentElement;
+  var isMobile=false;
+  try{isMobile=matchMedia("(max-width:900px),(hover:none)").matches}catch(e){isMobile=innerWidth<900}
+  if(!isMobile || (matchMedia && matchMedia("(prefers-reduced-motion:reduce)").matches)) return;
+
+  var SELECTOR=[
+    ".jrf-el",
+    ".card",".tile",".step",".rev",".ct",".banner",
+    ".eyebrow","h2","h3",".lead",".toolbar",
+    ".cols > *",".steps > *",".revs > *",".ct",
+    ".about > img",".about > div > *",
+    ".wrap > p",".wrap > .btn","form > *","footer .wrap > div",".fbot"
+  ].join(",");
+
+  function sectionTargets(sec){
+    var all=Array.prototype.slice.call(sec.querySelectorAll(SELECTOR));
+    return all.filter(function(el){
+      if(el.closest(".modal,.drawer,#intro,.hero,.rv-track")) return false;
+      var p=el.parentElement;
+      while(p && p!==sec){
+        if(p.classList.contains("jr-ref-item") || p.matches(".jrf-el")) return false;
+        p=p.parentElement;
+      }
+      return true;
+    });
+  }
+
+  function prepare(sec){
+    var list=sectionTargets(sec);
+    list.forEach(function(el,i){
+      if(el.getAttribute("data-jr-ref")==="1") return;
+      el.setAttribute("data-jr-ref","1");
+      el.classList.add("jr-ref-item");
+      el.classList.remove("jr-ref-in");
+      el.style.setProperty("--jr-ref-delay",Math.min((i%6)*70,350)+"ms");
+    });
+    return list;
+  }
+
+  function reveal(sec){
+    var list=prepare(sec);
+    sec.setAttribute("data-jr-ref-seen","1");
+    requestAnimationFrame(function(){
+      list.forEach(function(el){ el.classList.add("jr-ref-in"); });
+    });
+  }
+
+  function start(){
+    root.classList.add("jr-reference-motion");
+    /* تعطيل طبقة v26 القديمة على الهاتف قبل تطبيق نمط الكود المرجعي */
+    root.classList.remove("jrfill-on");
+
+    var secs=Array.prototype.slice.call(document.querySelectorAll("section,footer"))
+      .filter(function(sec){
+        return !sec.closest(".modal,.drawer,#intro") &&
+          !sec.classList.contains("hero") && sec.id!=="top";
+      });
+    secs.forEach(prepare);
+
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){
+          reveal(entry.target);
+          io.unobserve(entry.target);
+        }
+      });
+    },{threshold:.18,rootMargin:"0px 0px -8% 0px"});
+
+    secs.forEach(function(sec){
+      var r=sec.getBoundingClientRect();
+      if(r.top < innerHeight && r.bottom > 0) setTimeout(function(){reveal(sec)},40);
+      else io.observe(sec);
+    });
+
+    ["grid","revsGrid","reelsRail","chips"].forEach(function(id){
+      var node=document.getElementById(id);
+      if(!node) return;
+      new MutationObserver(function(){
+        var sec=node.closest("section");
+        if(!sec) return;
+        var list=prepare(sec);
+        if(sec.getAttribute("data-jr-ref-seen")==="1"){
+          requestAnimationFrame(function(){
+            list.forEach(function(el){el.classList.add("jr-ref-in")});
+          });
+        }
+      }).observe(node,{childList:true});
+    });
+  }
+
+  if(document.readyState==="complete") setTimeout(start,180);
+  else window.addEventListener("load",function(){setTimeout(start,180)},{once:true});
 })();
 </script>
