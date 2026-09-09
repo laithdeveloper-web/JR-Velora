@@ -181,7 +181,7 @@ body.introing{position:fixed!important;inset:0!important;width:100%!important;to
 }
 
 /* ===== أنيميشن الإضافة إلى السلة + تفاعل الأقسام ===== */
-html{scroll-behavior:auto;scrollbar-gutter:stable}
+html{scroll-behavior:smooth;scrollbar-gutter:stable}
 html.no-smooth,html.no-smooth *{scroll-behavior:auto!important}
 .fly-to-cart{position:fixed;z-index:1500;pointer-events:none;width:64px;height:64px;border-radius:50%;overflow:hidden;
   box-shadow:0 18px 40px -14px rgba(62,74,43,.6),0 0 0 3px rgba(198,160,82,.75);background:var(--paper);
@@ -491,12 +491,22 @@ html .drawer.open{transform:translate3d(0,0,0)}
 .toast{position:fixed;bottom:22px;inset-inline-start:50%;transform:translate(50%,120%);background:var(--olive-d);color:#F6F2E6;padding:13px 22px;border-radius:999px;z-index:999;transition:.35s;box-shadow:var(--shadow);font-size:.95rem}
 .toast.show{transform:translate(50%,0)}
 .fab{position:fixed;bottom:22px;inset-inline-end:22px;width:56px;height:56px;border-radius:50%;background:#25D366;color:#fff;display:grid;place-items:center;font-size:1.6rem;z-index:800;box-shadow:var(--shadow)}
+.reveal{opacity:0;will-change:transform,opacity;transition:opacity .9s cubic-bezier(.16,1,.3,1),transform 1.05s cubic-bezier(.16,1,.3,1),filter .9s ease}
+.reveal[data-reveal="up"]{transform:translate3d(0,42px,0)}
+.reveal[data-reveal="down"]{transform:translate3d(0,-32px,0)}
+.reveal[data-reveal="right"]{transform:translate3d(48px,0,0)}
+.reveal[data-reveal="left"]{transform:translate3d(-48px,0,0)}
+.reveal[data-reveal="zoom"]{transform:scale(.93)}
+.reveal[data-reveal="blur"]{filter:blur(14px);transform:translate3d(0,26px,0)}
+.reveal.in{opacity:1;transform:none;filter:none}
+.sprog{position:fixed;top:0;inset-inline:0;height:3px;z-index:1200;background:var(--grad-olive);transform:scaleX(0);transform-origin:right center;transition:transform .12s linear}
 body.scrolled header{box-shadow:0 10px 30px -22px rgba(62,74,43,.5)}
 body.scrolled .brand img{transform:scale(.92)}
 .brand img{transition:transform .5s ease}
 .wa-ico{width:1.15em;height:1.15em;display:block}
 .ct .ic .wa-ico{width:1.6rem;height:1.6rem;margin-inline:auto;color:#25D366}
 .fab .wa-ico{width:30px;height:30px}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1!important;transform:none!important;filter:none!important;transition:none!important}}
 
 /* =====================================================================
    ✦ MOBILE-FIRST PRO LAYER — تهيئة ذكية واحترافية لأجهزة الموبايل
@@ -748,6 +758,11 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
   #intro .loadzone{width:min(300px,82vw)}
 }
 
+/* الحركات الأفقية تتحول رأسية على الموبايل (منع أي إزاحة جانبية) */
+@media (max-width:760px){
+  .reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,32px,0)}
+}
+
 /* ===== الوضع الأفقي القصير على الموبايل ===== */
 @media (max-height:520px) and (orientation:landscape){
   .hero .wrap{padding:26px 0}
@@ -777,6 +792,44 @@ body.lock .mcart{transform:translate3d(0,140%,0);transition:transform .28s cubic
 
 .btn .cart-ico,.btn-ico .cart-ico{display:inline-block;width:19px;height:19px;vertical-align:-4px;margin-inline-start:.4rem}
 #flyer .cart-ico,.flyer .cart-ico{width:26px;height:26px;color:var(--olive,#5b6a4a)}
+
+/* ===== حركة انتقال وعرض الأقسام الاحترافية (v9) ===== */
+/* لا يوجد أي إخفاء كامل للمحتوى => لا وميض أبيض إطلاقًا */
+@keyframes jrArriveSweep{
+  0%{opacity:0;transform:scaleX(.3)}
+  28%{opacity:.9}
+  100%{opacity:0;transform:scaleX(1)}
+}
+@keyframes jrArriveLift{
+  0%{transform:translate3d(0,7px,0)}
+  100%{transform:none}
+}
+.jr-arrive{animation:jrArriveLift .62s cubic-bezier(.16,.84,.28,1) both;will-change:transform}
+.jr-arrive::after{
+  content:"";position:absolute;left:0;right:0;top:0;height:1.5px;pointer-events:none;z-index:5;
+  transform-origin:50% 50%;
+  background:linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent);
+  animation:jrArriveSweep .95s cubic-bezier(.16,.7,.3,1) both;
+}
+.jr-arrive{position:relative}
+
+/* عرض متتابع ناعم للعناصر عند دخولها الشاشة (بدون اختفاء مزعج) */
+html.jr-rv-on .jr-rv{opacity:.001;transform:translate3d(0,22px,0) scale(.985);
+  transition:opacity .62s cubic-bezier(.16,.84,.28,1),transform .62s cubic-bezier(.16,.84,.28,1);
+  will-change:opacity,transform;backface-visibility:hidden}
+html.jr-rv-on .jr-rv.jr-in{opacity:1;transform:none}
+
+/* لمسة ذهبية هادئة على الرابط عند النقر */
+.jr-nav-press{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+@keyframes jrRipple{0%{transform:translate(-50%,-50%) scale(.3);opacity:.32}100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+.jr-ripple{position:absolute;width:100px;height:100px;border-radius:50%;
+  background:radial-gradient(circle,rgba(212,175,55,.38),rgba(212,175,55,0) 70%);
+  pointer-events:none;animation:jrRipple .5s cubic-bezier(.22,.7,.3,1) forwards}
+a,button{-webkit-tap-highlight-color:transparent}
+@media (prefers-reduced-motion:reduce){
+  .jr-arrive,.jr-arrive::after,.jr-ripple{animation:none!important}
+  html.jr-rv-on .jr-rv{opacity:1!important;transform:none!important;transition:none!important}
+}
 
 /* ============ نظام الطباعة العربية الاحترافي (v10) ============ */
 :root{
@@ -880,19 +933,11 @@ html[dir="ltr"] .drawer{transform:translateX(110%)}
 html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
 @media (max-width:900px){html.lang-en .hero::after{background:linear-gradient(180deg,rgba(250,246,236,.38),rgba(250,246,236,.78) 58%,rgba(250,246,236,.94))}}
 </style>
-<script>
-/* ===== JR v35 — تفعيل نظام الحركة قبل أول رسم لمنع ظهور المحتوى قبل الكشف ===== */
-(function(){
-  var r=document.documentElement;
-  try{ if(matchMedia("(prefers-reduced-motion:reduce)").matches) return; }catch(e){}
-  r.classList.add("jr-motion");
-  setTimeout(function(){ if(!window.__jrRevealReady) r.classList.remove("jr-motion"); },5000);
-})();
-</script>
 </head>
 <body>
 
 <!-- INTRO -->
+<div class="sprog" id="scrollProgress" aria-hidden="true"></div>
 <div id="intro" role="status" aria-live="polite">
   <div class="ic">
     <div class="ring"><img class="intro-logo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAGkAaQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6DAoNeeXvxCVX/cRZT3q3pHj62uZAl1GY88ZrP2sW7XA7ikNMt7iK5iEkThlPpUmK0AbQRTsUmKYDSKTHFPxSGkBGRSGnmkxQAzFIRTxSGmBG/K0zFTEcVGRQgIiKYwzUrCmMKYFdhzTGFTstRsKYiu3SoiKnYVGRTERkUypSMVGRzTASmN0p54qNjRYLkcnIqq4bPAq03ShQMVSJKJD+lMZW9K0Tj2qNse1FxWM/YaYy4q45AqF8GmmIqsPWoytWWWoipqiSBhUDjmrTKfSoWFUhMrkU1hxUrKaaRTEQ4pD71IVpCKYiIimFM1Ntp2w4pisU2T2phSr/AJJPaozCaLisUfLNHkkCr4iGOlIY/ai47FAJ7U4JVvyxR5dFwsVtvtQEPpVkLShRmi4WK23HWmtVmROTUfl55NArEIXNMkXnirYXAwBTHjJouFimeDRVn7OaKLhY0tQ8F3Nud4B2+3Nc1qNpeWWSq7gPSvoZkVxhgCKy7zw/YXRJkiAJ64rxpYdfZO655B4N8W3Wm36JcOTAxAKt2r3C1mS5gSaIgowyCK4vVfh3YXYJgcxuehrY8LWlzo1qtheP5ir9x/aqoxnDSWwjoSKTFPwKY8kaKSzqB6k10AGOKQ02K4glOIpUb6GpSKAIiKQipCKTFAEeKQin4oIoAjI4NR7fWrAFREYFMCIimMOKmIppFMCuRxUTDNWHFRMKYMrsKjYVOwqNhTEV2qNvap2FMK00SyAjNMfg1M49KiZaoRAxphzU5TNOjhJPFAiuELDilMTAdDV+OHbyelNYgk8cUrjsZjQk/SozHg1pSOAMAVWcjqRVJiZTZcVGRVmTk1ERVEsrNUTqKssveo2XNNElR19KiK1bKUwx57VQittpRHmrQizVmC23HpSvYErlBLfJ6cVYEGOgzWn9nCr0xSJFkkgcCo5i1EzvI9ajeHAzjitNhg5K8dyary4ZfQelNMGjLfgdKYUJ7VdaNc9RiopMdAOKu5BUKnNIRVjaT2oEXtRcCsVz0pdu3rVhlA6VEUJNAiIgdaa3TipvKJpDEB1NMCDNOHNSbEFBKjpQxER+lFOJ54ooGehTeNNMiUnLsB7VNpes3Wtgvp8KxQqfvy9/wrxzRFa9uDNcH9wnQete1eCxEdDikiAAYnpXkUqjqM7DVX7SuNwjb6VMyqybpABjn6U6sXxjqA03w9dTZwxXap9zW7fKriOM8W+NJmu5LPTW2RIdrSDqT7Vhpq0zRLE8rMX65Nc/HbyzvuXPJz6k10emeFNSuollSBsHoW4rz1Kc3cZp2d1HYhPLc+YeTz0rdsfFcisFnAkT1HWsm38D6jIw8yRIh35ya6vR/C1pYxjzszydy3SumEZgaVjqlreRhopAD3B4q4CrcqQR7UxLWFF2pEgH0p6RIn3Fx9K6FfqITFJipKQimAwdaiYVPjFRPwxoAjNNIqQim4pgQuKjIAqwwqJlpgQMPaomUYqwwqMjNMRWYVGwqyy1GVqhMrlabs9qsbaUR5p3JsV1j46VLGoXJPapvkVfeoXYAcUtx7CO+RjHFRNtAJFBaopDmqSFchkOahepmFMIqkSV2FRke1WtmaQxjvTFYqFc03y6uhFHNRsoJ4phYreXSiHJ6VZWLcasRxAdcUrgkVIrbJzirsUJQDaACfWpAuRhf5U77PzmRuKhstKxBNGFONzMae+1IzjANJKRuJzjsKpyv1AoSuJuxHO+eCc1UcnNSuCeaiK1okQ3chcZ4pFjz1FSkU0n0pkiMoAwKaEwOaU5601uvWgdxjLTGOOlSkE05YGbHqaZJUZielIFLHmtE2YUc9aEtwPvY+lFx2ZnGOmFK1DGq/jVZ4izcUXE0UtlFXhb8UUcwWOPtS6WSwwjjHJr2/wVavaeGrKKTh9m4/jXnXgDSF1O5QOv7mL5nPr7V7CihVCqMKOAK8bC02rzZ2C9K5HU4D4o1E2mD/Z1s3zsP429K6LUZiAlvEf3s3yj2Hc1k69fJ4X0eNbGEyzSNtjQDJZu5rom++wF3TNA03Tz/o9um/1bk1rAAdBgVj6B56aaLrVX2XMvzuGOAg9KSbxRpEIJe8Tj0pqUUuwjaxSEVzlr4y0u6ulhidvm/iI4rV/ta06h3I9kNNST2Au0CqD6xZKpZpCAPVSKltdStLlQ0c6fQnBp8yAtYpp4qKW9tof9ZPGv1anw3ENwN0MiOP8AZOaLoBe9MkHzVLiklHANMCvilxT8UYpgRMKjIqZhmoyKAK5FRkVYZajIqgIDTCKmZajIpoljCKQkgYFONNNMRE3TmoXqVhUZWmhMjppFSFaTbmmIgZaZsq0UpClO4iuVxUZWrDLSeXmi4Fcr7UqxeoqykXrUyR7iFUc0XBIphCOgqVIT1NTvHsOCKJPkQY6ntSuOxE8mwEJ1qvJMxzk0shqtIaaQmxskxPSodxNOYZNIEq7EXGNk1GR7VZ2Uhi9aAKu0ml8urfletKEB4xRcLFAx0ogPpV4RjPIqRYx6UuYfKUFh2mrEaEDIHNWxCOuKURgetJyuUolUpnqKieLGTV9wnbrUDjNCYNFMqKBHz6VKw9KYxwKoktWtrG0RMnXPFFTxgpFGB/dBornctTZQVjX8B6T/AGVoxjYfvTIwYn0BwK6GeaK3haWeRURRksxwBXLJ4tW6CQaRaNNeP/Cxwq+5NWY/D02oss3iG5NwRyLeP5Yl/DvWEWrWiWV7HX4bySa6s7ee8uHJSNEXCqo9SfWkSw8SX12Z7q4tLNP4FVPMZB9Txmuqghit4xHDGsaDgBRipafL3C5zUnhO3uTu1G8u7tu4eTav5CqeveFrCHS5JbWLYYhuCk5Brsaz9fGdHuf93mlKEbbCuee+Bo7W51zJCwmMEhG7mvUNijoo/KvFtZ3Ws0N1aZBT7+K9B8I+I49Qhjgmf99jAJ71jRml7rGdM0aN95FP1Fcp460tP7P+12y+W8RydnHFddUV1AlzbyQyDKOMEVvOPNFoR4Pd6hM58uZyfQ5qfQNWuNNuw8Nw2M8qTxTPGGkz6RqLRSqfKJyj44IrIMTNFvjGWFeQqk4ytLdDPd9B1211SFQJFE+OUzWw4yn0r500m5uLa6jmhlZHU5xmvoDQ7wajpUM46uvP1r0cPX9roInxSEU/FBFdIyIio2FTkU0rTEV2WoyKslajZaYFcrTGSrJFNKk0wKjLTCtW/Lz14FNaMD6U7ktFJkOKYUq4wGMVGUyadxWK2ylWP3q0IaVo1Q89fSncVimy47VGVzVqT5myBTCooEVwlOCCpSPWo+9MByoDk+lKJRCh2gbj60wsRmoX5PvStcLj5blj2FVXkYdKew4qMpVJJCbIGJNM2EmrixetOEXoKdxWKflUoj54FXPJz16CpPKC/wAJpcw+UprB3NPEJzVxI8jODUgjxgnilzDUTPeDjHelWBVXHU+tWpAAfU0wuqDLdaLhYh8kdxSFVUUrzgk1EXJoAGkx0FQvIxPFJIW/Com3DtVJEtiu/oaiMlKVOaciKRyefSqJuRklugpUiMkiqB1OKmRE7mrtqqZYqOVHWpk7IcVcZNgyHJxRTXU7zg5/CiuY6Dhzb6jpsyytBNGFP3sEEV6dpsepXOl295ZakT5ihvKnUMPcZ610UsMcyFJUV0PUEVDptotlE0EQxApyg9M9q56dHke+g7mKviu1srk2mtf6JcL/ABHlD75rftLy3vED2s8cqnujA15D8Vy6+J2LA7DEu33rlNL1iezmzbSyxbT/AAnpWP1vkm4MR9I4plxEs8LxP911KmuD8KeNfPKQai6vngSDgj6iu/Uh1DKQVIyCK64VI1FdAeQa3ZS6elzDPk7Cce47VX8PRFxFcW5xJGwPFejeM9FbVLBmgGZ0HT+8K868OBrCeSCQEOrcg1xzhyTGexwN5kEbnqVBpxFRWI/0SHP90VPXchFHU9MtNTtzDeQrIvuORXBav4NGmP51nl7cnlTyRXpeKa6B1KsMqeoNZ1KUZ7geC6tpx066EwH7pz+VenfDW+FxpkkQ/wCWbdKn17wvFe27rDgE8hTWT8ObOfTL++tLpChGCue4rlp0pUqt1sxndsvJppFWNhbkU3Z7V3gQYpCtTFaaRQBEVpmyp9uaCMdKYiuUFMcgcAVM4qJhTAhIJphTnmp9pPSkMZ79aYiuUyeBS+XirKoF5PWmMyg8UXAg2kdKidcnmpmNRsaYmQFaaRipGphHrVEkbfhTWBNS4ppHFAEDCmFSasbM04RAnnigVioI6kWHjpVtIQ3Q/pSyptHANLmHylVY/pUkcQdsYqQoVQY6n9KngVUX5iMmk2UkQxwZO49OwodFBJYcVLLMqg8jA9KiUggs3J7CkMilfCgKAoqrLKfU1LcHJqjI2TVpENg03WoHcsaeRmgLV2sZ3ItpJqQKQMDk+1Sr8tNYM3TpQGxHyB8xqNsGpdhJp4h9aewFTbjtTkiMh9qs7QOAKUHjAGKGxJEQg446etWoEEdvkHlj/Ko/Jdvl7mrU6iONUyPkGKym9LGsFqZNyWaZjsB+tFLNzIef1FFZGp6DSimilHWgRwvxT0Vr2wjv4F3PAMOB/d9a8XuFaFiycMK+o3RXRkcBlYYIPcV47488GSabNJeWSF7JzkgcmP8A+tXm4yg7+0iM5HS5BcAFCVkH516p8M9dluPM0u8bdJGN0THqR3FeOReZaXSypkLnmu28LStD4o0y4Q4MjhTjoQa5cNUcZpge3DpXJa9oEb6xa3kShRI4SUDv711lNljWQLu6Kdw+te1KKkhCqoVQB0AwKUj0p1FUA2iloxQAlV5rVXlSVQBIvf2qzRRYB6E7cUvNNQ/NU+30oGiHbntSMmKlYYpME0AQN6Coypq0yYGT3pFVe9AFQpnrSmMVZdVzx1phUAcmgCDAHAqNqmY+lRPzTQiBqjapytMZaoRXaoyM1YZKZtp3E0QFaTbUxSgJk4p3FYg2k0eX61ZKAdKURHGcHPpSuOxXCY7VMltnl6lCbCGcgH0psjKQfnpNjsIxVBgED6VXZxnIGTTXIHfNMycZ6CmkJsl2Mx5OPao2whyzAioWlIztPPrUDkt3p8ouYfKwZyw6U03GOlRtkimBc1VibsHk3cgYqJlzU4izS+Sc4FO9hFdVyelTJDxk1dt7XC7mBp8kY6cAegqXK41EpCAN05xTXG0YVfxNWpWEY2oBVdmzyetCBoIoh1b8KY4HTIpTvfucUixndTEII/yqRY1A/wAKUYH3jSeYM8UATwAbxgdOeaqXTdQeT64q7Cp8hnJxuOB9B/n9Kzbs/MayluaR2KMqlnJC0U9gpbLPz+H9aKko74U4Ug5pwHNACih0WRCjqGVhgg9DSiloA4TxJ8PLS+Dy6YwtpTyYzyhP9KwvBehXNv4hgtL+MpJaOZBnuB0wa9ZqtJFu1GCUIMqjAt7elc0sNDmU0guWscUoFFFdIBRS96WgBKTBpRTsUAMxQelOIpO9MBBxVqL5kzVWp7VvmK+tJjRKUphXBqxtpdvFTcZUPvTG9qsORmoW+lUIhNNNSGo2oERtUZ61KRTCtUBGcUwiptlGygCtjNNK1cWIscAUrwAcDJouKxTEZxnFKFIB45q0YwB1NRlRmi4FfB6UmWH3mIFSuwXpUDEsTmmA2WUNwF4FVmyTUzLUTCqWhLIyaY7MRipCtNIpkkDCm7SanK0m3FAEGynKmTipCtFACqoBIpwZV6AZqPOM00sT0osO4+SRj3NR7iOh5pDzSU7CuIcnqaTaM040gFMkCxppzinbeaXbQBCVJ605UJwAMk8VKFqxaRjeXPRefxobsO1xLr93GU7KMCsi5JJ5FaF9Ic8EZrP5IIJNYmw0DA7fiuf6UUpGD1H44opWA7kY7UorxvUPiXdytstYfKHqam0nx5qBceYVkXvXI8ZTTsOx7AKUVhaF4gt9TRQSEl9DW6K6IyUldCFpetGOaUCqAAKUUoFKBQMTFLilxS4oENxRTsUYoAb1pMc06kNMBpoVtrAjqKUimmgDSVgyAjvQx45qvaSYUofqKmc5HSpGRvjoKiYVIRSbC3SmIgIzSFas+Vx70CL1ouBU2Z7Uvl1aK4OMUoiyeSMUXGVRCTzjj3o8gt0q84G3AHFRMxWlcLDY49i/NioXZckLT3ckcmq7EUwuRSkk8VEVzUhyTSEGqQiCRRURFWGWmEUxFZgaaUqwygUx+aYrFcqKYwAqYimMKYiEigjPSnHNByaYiMimEVKRzSFaBEO3im4qbbik20ARY5oI4qbZRtFAiALSham20oWmFiILRsqYLShM0rgRqoFWHXy4QDwT8xp0MQLjd90cmob98g89e1TJlxXUzZ3DE4GRUXFP2g0bfU8etSWRhfr+H/66KcVAPLYooEc3qum6Lf5ksHQO3Va5rUNFls8NbqwH6UyXT9R0yU7o3GO+K7rwDqkepB7K+jDOBxuHNeSrVZcslZlHF6drU2nyq0iEFTwa9f8ACGvR63YB1P7xeGFR3Xg/SrrPmQ4z6U3TPC8ej3Pm6XIyBvvIehrqpUp03voB01OFMj3bRv61IK6gFFOHSkApwoABS4pQKdQIZilxThSGgBpFNxTzTTTAYwptSYppFACIxRgw7Gr6kMoI6GqGKsWknOxvqKTAm2804KBTuKTBpDCk6UuPU0hoAaRmgDHNKaQ5oGIz4HFV3JJ5NTEU0r60CK5GRUZSrJUUwrTEQFQPrUbVOwqNlpgQMKYVNTlRTCKYiAqaYwqwRUbCmBXYUwipylMK0xNEGKTbUxWkK0CICtJip9tJtp3CxDtoK1NtpQlFxWK+w04IasrFkjjrUgiVTwR+dK47FPZTlj/KreI09z6Cms+egAFFx2RX247UoHPAqQ1JENzdOByfpQIYR5UR3febn8Kx7pt0mOwrS1CfO7B5rLUHd83APepLGjOCDkU0jt29KlYDnng0zHrigCJjg9vyzRUmRk5OKKAN+W2gnGJYlYe4qlHoVrbXiXVpGI5B1x3FaSkZqRelQ4pgTqeBTxUa1ItMY6nAU3vTloAcKcBQBTsUCAUtFLigBKDS0YoAaaaRT8UhpgMpCKcRSUAM70vQgjqKU0UAXonEiA/nTjVKGTy35+6etXutIBuKMU40lIY3FBFLijFADCKYRzTriFZoWjfdtYYOCQfzFcH4AWW6vdRN3cXE4iwiB5WIGSc9/asKlZwnGFty4wvFy7HcEUxhXGeHYHuPEupW9xcXEkEO7YhmfjDYHetzW7OS1sJbnTppopYV34MhZWA6gg5qYYhyg6nLov0HKnaXLc02WmFaq6BfnU9MjnkAWXJRwOmRV8iuiE1OKktmZtcrsyArUbLVgrTStWIrlaYy1ZZajZaYFcrTClWGSmlaBFYrSFanK0m2mBXK0myrBSm4oAjCU7AFPApegoAYxJ6DFMxUuKTFAiHHtS4qXFJt5piI8VLMfIgIx8x5apIlAJdug/nWZqE5d8AjNJsaRUuGEkmaYPQinAevT1pCOoU0ihhwAaYx/XpTyODmmEY7/hQBHz70UZwTlvzoouI6RTUqmoEPSpFPNSMsIalU1AualU0DJhT1qNe1SLQBIKcBSCnCgBcUtFFAhMUUtJ1oAQ00inmkoAaRTcCn01hTAYaKU0lACHkVZtZeNjde1VjSE9x1oA06Kit5RInP3h1qWkAlFLQaQDTXGfD+HybrVOerL/Nq7Q9K4r4eymW61Q+jKP1auOv/AB6fz/I2h8EvkO8OokfibVpmbC/OTxn+Kr+sagNQsprTSla5llGxnUYWMHrkms/wxJnxdq0Y6jf/AOh1Nr0D6LqMeqWa4SRsTKOh/wD1/wA654SaoX6Xd/vNJJOpbrpY1tB0z+y9Mjt2be+SzsOmTV4ii0uI7u2jngO6NxkGpCK9KmoqKUdjnldttkJFNIqUimkVZJERTGWpyKaRTArlaYV9qsEU0rTArlabtqwVpuOaAICtJtFTkU0rRcRCVo21Lto20AQ4o21LijFFwIttOVMnAFSY4plxKIIz0z3ouBW1GdY02KenasVjuO48mpp5WkkLevSoh65AHrSGBPykdKb0FOILdKjbOO2PemAhOcjimngU4nAz2qIk9M//AKqAI8k9CT+FFNZsEg4/MUUrCOlXpUqHI96g5qRG9aQydT6VMpqupqdDmgZOp4qRahU81KtAEymn1Gpp4NAh9FJmlFACUd6XvSUAFJiloNADaQ07FVje2gP/AB9W/wD39X/Gi9gJTSYqI3tp/wA/Vv8A9/V/xqbqMjkUJ3AYabUhphFMARijhl6itCKQSJkfiPSshrq3VirXEIYdQZFyP1qS1u4mkJgmjkx1CuDSugNaimxusi5U06kBl6tfPFDJBZRPPeMCFVRwpPcnoBVbw5pI0LTH3Zknc75Sgzk+grdxScVl7NOfO9yubTlOD8L299a+J7y8urC5jgutwDFM7ctkZrsr61jvbWSCcZjkGDVqkqaVBU4uG6KnNyfMcNpd9J4a1FtO1LK2cjZimP3c+v0Pf0rtVKugZSCpGQRyDSXEEVxGUniSRD/C6gioLXTrS0bdbQLEf9nIH5dKKNKVL3U7rp5BOSlr1LBHFMIqQimkV0EEZFNIqUimkUCIiKQipCKbigCMikK1Liq93cwWkavdTRxIziNS5xlicAD3JovYBdtIRUpFJimBFikK1LikwKLgRbaApzUv0FI7bFLNwBQBG5ESbm6jpWDeXBmlODxU+pXZlYqvSs4579aAHYGOO9NJ9utBY8jpTGbJxTAUsB2465pjNwePfFIz5PBqLeMgCgAdh36YqOVtoxgjmkLjkD68VCWJHYcc57UCGM/PXH0oprE5Oc/jRQB1qmpF4FRKealHIqRkinNTRmoFGOtSqfSgZYQ4qVahU5qVTQBKtSA1GvSng0CHinA0wGloAdRSUUALSUlJn1oAd2ryf41eBrG60GfXNMs4odQsx5kvkoF82P8AiyB3HXPpmvV6ZLGk0bxyqHjdSrKehB4IqJwU4tMD5i+CNvp1x47gj1SGKUPE/kpKoZfMGCOD1OA2K+nRgABRgDgAV8meJ9Nu/BXjySK3Yq9nOs9s/wDeTO5T+XB/GvqXQ9Tg1nRrLUbYjyrmISAehPUfgcj8K58K7Jwe6Ei6aSnGmmuy4zyf4reHrHWvE/h3TrOGOLU7yR2uJUQBvIAGWb174zXomiaFpmg2aWukWcVvEoAJVRuf3ZupP1rmfAw/t3xHrXiiQboWf7BYE9oUPzMP95v613JFY0orWfcSCKRomyOncVoRuJFytc3Lr2jxTGKXVbBJR1VrhAR+taNtco6iS3lSRD0ZGDKfxFaXTGVfGuq6no2hT3+k2EN68CmSRJJSm1AMkjAOfpxXl3wu8f674t+IKw6hNHHYC2ldbaFNqgjbgk9Sfqa9d1qRJfD+pZ/59pcg/wC4a+dv2eufiEpH3fscuP8Ax2uaq2qkUmJ7n03RS1HLLHDGZJZFRB1ZjgD8a6Sh9NxVODV9NuJfLg1Czkk/upOrH8gau0rgJTadTWYLjcQMnAyeppgJikIpl1dW9pH5l1PFBH/ekcKPzNEE8VzEstvIksTdHRgwP4ii62AUim4qTGaiWaJn2LIhf0DDNFwEchFLMcKBkn0FfNXjfxZeeIte+1I7JZW8uLSPsuDwx/2jjNfS08Qlgkic4V1Kn2yMV8+Xvhebw9piSajbhpEvJFgjY4EzjAQn/YAVmP1A9a48YpNJLYmR755qJEjzukZZQfmYDnHvT1w6hlIZTyCOQa+adN03VvGXiZLea6lvtz5nuSSUjXufQegHevpS2t47S2it4F2wxIERR2AGBWtGs6mtrIadxxGKTA9KfTWIUEk4AroGNLYBJ4ArG1G+3kovTpS6nf7wUiPHSssnJy1MQ0jc2aQnaPekd8H2pjvheKYCsw561EzAfWmPIQOoqJnPU4oAV3we471A7nPpSO+eW5/Cq7S5OCcjrk0ASlwcgn8T/Ko3cY4HI5xULyZBBz64FR7sggkA8gdxQIeXUHlh+Q/xFFV2kbccHHPb/wDXRQB3iGpUqBTzUyGpGTLUqe9RR1MtAEq1KpqNKlXigY8GpBTBTgaBDxThTAacPoaAHUuKQZ9DTufSgBuKTFPwaNh9qAGUU/YfWjZ70AeP/tBeHjd6Ra65bIDNZnypyO8THg/g3/oVUv2ePEPmQX3h+dyWjJubfJ/hPDqPocH8TXseq6bBqmm3Vhdjdb3MbROPYjFfKFnLe+BPHi7gfO0252yD/npH0P4Mp/WuOr+6qKa2ZL0dz6zzXI/E/VZtN8LvBZZ/tHUpFsbUDrvfgn8Bk11tnLBeWsNzbMHhmQSIwPVSMg1xEOPEfxSkcfNp3h2LYB2a6kHP/fK/qK6Ju6suozotHsbbw54btrQOqW1jAA8h4HAyzH8cmvLrDV734o+K5LWKaa08LWY3yxRMUa4GcKGI/venYA966r46ak+meApo4ODezJbkj+6cs36Lj8a4z4EzarZ6Nqj6boiXyTXAUzNdrFt2qPlwQT/FnPvWM5XqKn0Eeu22i6VaWn2a102yjt8YMYhXBHvxz+NeQfEC2uPhx4gstZ8MyG30+8JE1lkmEuuCRt7Ag9umDivTBqPiok/8U1Zr/vamP6JXJfETw34s8a2VnaSafpljFbymXIvC5Y4x/dGB1qqqvH3VqNnWWmtQeIfBcmpWWViuLORtvdTtIKn6HIrxv9nohfH6r3+xy/8AstereBvDV94V+HepafqbQtMFnkTyWLAKyeuB3zXkv7PIJ+IKsf8Anzl/mtZTbc4N7iPb/iR40tvBukLM6ia9uCUtoCcbj3Y/7I/+tXJ/D3w3c+LYR4k8bSvqCzndZ2chxDGufvbOnPYenPOa82+Oeoyar8RLq03Hy7NUtox6EgMf1b9K+mdJtEsdLs7SIAJBCkYHsFAq4P2tR32Q92ZupeEtB1Gza2udJsvLIwCkSoy+6sACPwrySbXtZ+Fni1dM1G5m1Hw5KA8PnHdIkZOMqfVe46H2zXvFeN/tK2Ky+H9JvABviujET/sspOPzUVVePLHmjugZ6fcs+s6KJdG1A2/2hBJDdRorjBGQcMMEV8yaZ4m1OT4hafc69qF1efYLtsoWJBK5GFXpkngcd69h/Z81BrvwKbV33GyuGiXPZThgP1NeN+FYY5fjFaRuoZDqzkg+zsf5isasubkkuonqepa/8MdW8W276jr2svHq0ilorREzb247R+v1Yd/Wk+EOg654Ns9futfje306OPesG8NlkyWdQPbj3/CvYM02VVkjZJFDIwKsrDIIPauj2EU+ZbjseF+B9Xv/AIn+Lbv+1rmaHRrWLzRp8DmNHycKHI5buTXfeIfh1oN9pc0On6fFYXoQ+TcW42Mr44zjqM9c1q2eneGvBlrcT20dlpMMx3SuzhdxHuT+gqsvjJNRUjw1pl7qrdBME8m3/wC/j4yPoDUqCUbT1YWPLvgr4z1T+3x4d1q4kuklDiEyNuaJ1BJXPUggGu1+LSSwWdteLp0FzGoKPcTxGcW2ehEROOe7c9BXjvwzLp8XdPDgCQ3c28A5AOHyB7V9SsVIIIyD1rOinUpuLYLU+c/DXxA1nR79be2aHULMt80EdssW7/d2gEH869/sJzeWUFyIZofNQN5cq7XXPYjsafbWNjayGS2s7eGQ9WjiVSfxAqyXX3rWjSlTVpO4LQgdhGpZ/lUdzWHqeoeYSkfC1b1SC9nb5DGUHQA4rCuLe9jz/oshX1BBrosMjZuOetRNL+NV5pZk+VonH4VUa5YAgI4+q0wLryjPX86ryS5xjIPpVJ7oO3dcHpTGulPRgPxpiLbSDBH6+9QPMGb0Haqzzbu/NQPL8nDYx70AW3lGSEJ9PoKhkcBSSMjPQ96qmUjluQetRmVixCkEkdfagCcSfNhiSex9KSWQYOB04xVdpAUYDpnj1NMEjdWP68f/AK6ALAcY9McdM0VSdizZCls+pHHtRQB6ctSqaYFqWMVAyRGqVCaYozUi9aAJk5qdB71ApqVc0ATACpFwKiWnigCUU4GoxThQBIKWmilzQAtFAIo3CgAoNGaM0AJivCv2ivDhSWz8Q2y4D4trnA7jlG/LI/AV7rWT4q0aHxD4evtLuQNlxGVDf3W6q34EA1lWhzxaEzyn4T+OUsPh1qcd/KDPo0ZeJWPLo33B+DHH4ivQPhnosujeFIPthLahesby6Y9TJJzg/QYFeA/DXwvNqnj6PTLyN1itJC94h6Yjb7p9csFFfVArPD3kry6aAjzf4+2U134D82Fc/ZblJX9lOVJ/8eFc9+zfqStZ6xpcjgSrItyi9ypG0/kQPzr2LULODULG4s7tBJbzoY5EPdSMGvmvXvDmv/DDXk1PTBJNao58m6C7lKH+CQDpxwfXtU1U4VFUWwPufTWPSpUTjJryXSPjdoUtvGdWtbuzuMfMIlEqZ9jkH8xVw+PdU8YSnT/Aumzxq/yy6pdriO3XuVAzlvQZ/CtlXg9ncLnd6jfW95ousrayCTyI5oZCB0cJkj3xmvnz9nrP/CwV/wCvOX+a17TrMml+CvANzay3KKqWsiqZXHmXEjA5PqWZjk/WvBfgjqtrpXjy2nv7iOC3lhkg8x2AUMQMZPbpisKr/eRuJ7j/AI22kmmfEm+m2nFx5dyme4wAf1U19Q6bcpeada3MZBjmiSRT7EA1xfxR8FReNNGilsHiXU7dS1tMTlXU9UJHY9j2Nc98L/Fr6LbJ4V8ZK2m39r8lvJc/KkqdlDdMjsc4IxVQXs6jvsx9T104rx39pW8jTw5pVkWxJNdGQD2VCD+rCvTdT1nTNNs2u73UbWC3AzvaUYP09fwrxHUtN1T4t+MEu0t5rLw3bDyo7iVdpZM5YqD1Zj+A4zVV3ePLHdgzr/2dtPaz8FTXTg4vbppEz3VQFz+YNeSeD/8Aksdp/wBhWT/0Nq+lYxp3hvRooxJDZadaRhF3sFVVA6ZPU/zr5Z8N6za2nxFstWndVtP7QMzOf4VZzyfwNZVY8nJHsJn13k1zHxG8Uf8ACJ+F7jUVRXuCRFAjdDI3TPsACfwrftruG5gSa3ljmhcZV42DKfoRXFfGXQ7nxF4MkisIzLc20q3CxDq4AIIHvg5/Cuqo3yNx3KZx3wh0Q+Lbq78U+KZX1KRJvKt45vmRWABLbemBkADpXtQcKQFXAHAAFfPPwc+INj4ZjutE1xZILdpfNSYIT5bYAZWHXsK9Pbx7b61cf2f4NSTUL1xhrlomW3th/fdiBnHZRyaxoTgoLuJHi/w3J/4W/asRz9tn/k9fTZmQdSa+W7CQ+DfitG+rebss7tjKxX5nRsjePXIOeK+jPDuvWniGOe502OVrFGCx3LoVWY99oPOBwM+v0pYRpJxe9wRqm5jHVqabqE/xinMiHqoqJoIzn5RXWMf9oiIxvWo2kjzw6/nUbWkR7VG1nESeo/GgCV9jj5trD35qnNY2snWJQfVeKebKPszD8aYbIDo7UXAoy6Nbk5VmB9+aoT6AxzsCOPyrbNq4+7JUTJdL91waYHLXGjtH9+3IHfAqhLYRgn5MV2jG8HUg/hUEg38TRqfwouI4l7FFHBfH1qBrEZ4dh9a7ZrOycHOVPtVK50pOscoIp3A5A2ZGfm59aikglJ64/rXRyWLDIDKarTWcij7pIoA51o5wcbVb3NFbDWxJJP60UAd+KlUHFRLUqmpGSLUqVEtSoaQEyipVFRqRipVNAD1pwpgIp4oAeKcOtMU04GgCQdKUU0GlzQAuKUCkBpc0ALS4pM0ZoAKSiigChaaPp9pqV5qFraRRXl3jz5VHzSY6Zq9ilpcUJWAbikKBgQwyDwQehqQClAoAyJPDGhyz+dJo+nPL/eNsmf5VqwxJBGscKJHGvRUUAD8BUlGRSskBDNaW9wVNxBDKV6GRA2Ppmmf2ZYkY+xWuP+uK/wCFWgRSgiiyAbHGsaKiKEVRgKowAKgvrC01CEw31tBcxH+CaMOPyNWc0hYUwMO28JeHrWUS2+h6bHIOjLbpkfTitrAAAAAA7UpYU0sKSSWwEc0EUy7Zoo5F64dQw/Wq/wDZtiBj7Fa/9+V/wq2TmkNOwEcUUcMYSKNEQdFRQAPwFOIpaSgDK1Dw7o+oTebfaXY3Ep6vJArMfxxVu2s7e0gWG0gigiXokSBQPwFWc0hNKyAz77SLC+kSS+sbW5dPutNErkfTIqwEEaKqKFRRgKBgAe1TE00mmBExNN3GpSRTCAaYEe800vTyopjLQAwv60xpADjNKyVE8eaABpG/hKmoXnlA/wBWD9DTJIu4zVaRZVOVJoQD21B0PzRMKik1GM8NGabvn6EA/Wq80rdGjH5UwFklt5P7yn6VWaFW5WYH61HLknOMVC2adhD5Y3XuCPY1XZ2Xvigkio2OetAAZmzzg/hRUJznrRRYDsVNPU81EpqRakZOpqVTUCmpUNAE6mpFNQKakBpATg06olNOzzQBKKfUYNPzQA+nVGGpwYUAPFLTc0uaAFzS5ptGaAHUtMzS5oAdS03NKKAHCnU2koAcTSZphNJmgCQDNLtqMPTxIKAHAGkIpQ4o3CgCFsioXdlq2QDUUiAigCv9ox1pRcikkhBqtJER0pgXVmU0/cKzPmWniUiiwF7PvRVVJakV896QEpphpkzExsASCR1U4IrjdW1DxFaXwFu/nQHv9mUj8cHP5VMpcoHZmmmuMh8UapbuRfaf56/9MInDf1FdLZXwu0VxG8akZw/BH4UKSYFsmmMx/CgsKaTVAIWprHihqYaYDGqM1I1RN60AIRmoniU9QKkJpjc0AVJbYckAVSl+Q4ePir8qygEoc1TmmlGRIgIpiKzG3bqCKia2RvuP+FEpRugxUGcGmANZy54wRRS+c47migDoUNTKagU1IpqRk6mpVNQKc1Kh9aAJ1NPBqFTUoNICQHmng5qIGnigCVTTweajWng0APzTgeKYKVaAJAaXNMJpQaAF3UuabSZoAkyaM1HmlBoAkWpFqNaeDQA6kJpM0maACmmnZpCc0AMINNyakNNIpgJuxTvMppXNN2GgCcSUu7NQDijNAEx5phAPpTd1IXxSAa8YNRNFUxcUhYGgCDy8UYxUxxTGoAZmkdVYfMAfrS9KaaAI/JjHKoAfpTWTvUhNGaAICWFNMhqdhmomQGmA3f70hbikZcdKjJxQA8tTGNIW5ppbNACZpppSfSmmgBM0x1DDkU6mmgCnNao2cdapy2TA/LWjKpwcGqrvIh9RTEZ7wuGxiirLXJzytFMDTVuKlU1XQ1IpqRk6tUyGq6mpkNAE6mpNyqhZyFUDJJOABUSkYySAB1NeT+M/F66jO8FvMfsUbEKqH/WEfxH+lY1aqpoD0K+8V6ZagiOU3Mn92Lp+ZrIXxvdSzYi0xAn+1KScflXljahFsBkfc3oev5VLbapey4jgQohOA7dfyrhliZPZjPXv+E1to2himiCTSsEA35AJOMn2rqoF8pNuST1Ynue5rxDQPDN3qeoRFCzKzAyyn+EZr2+unDTnO7mDJQ1O3VGtLmuoRz3iDXtStbgQaZpkkv8AemkUlR9AP60zR9V16e5Vbq1g8o9TtKkfqf5V0h2sMEA0qhV+6APoKjkd73AlUkqMjBxyKXNRg0masCXPNKDmogaepoAmSn1GlPzQAE0maM0hNAC0gpM0hamA7OaWmZozQA+im5pc0ABWmladmkNAEZpjGpjUbAUAQMxFMMmKlZOKgePNADhLS+aD3qs6EVEWK+tOwF/cPWkJ4qiJiOtPWbNKwFg0lRiQGl3A0gH0hphNJuxQA40woD2pN4o8wAdaAI3jqJkParBcGmlhTArYI60nepzimFc0AQkjnB5HWmZrjbDXEtvGeow3kmy3uHCI7HAVl4H4GuxZfTiohNTQAcGoJFBqU5App6VYFJrfJJ4oq0aKdwsMRqkDVWU1KDSAsq3apN+BVZTUqnNAGfqVm97ZSwXN1eFJFKsIQEz+n868n1zwdd29yIrU3dzCeeYsEfXHFe0FSVIDEVR2kE5FYVKMZ7oDymw8I3qkZtJVHuMfzrrNI8HTzMvnyJDGOwILV1gz6VPHxg1msPBDNPSbKDTbUQW6hV6k9yfUmrwasy2nPQnIq6rV0xS6CLGfSlDVAGpytTsBMDRmos0oNAEm6lzUWaN1AEwNPBquDmpENAFtTxS0wHgUuaAHZpCaYTRmgBTSE0hamk0wH5oBqPNGaAJQaXd71FmlzQBLmjIqLNLmgBxNNJpCaYTQA40xgKCaaTQA1gKhkQVMTmonoArSJioCMGrMhNQPVCI95B604TYpjVGetAFoT+tP8wEVQY03zSDilYZoZyKhb61XWenebmgAdmHQ0wzsOtOZwajYA0AKLg08XI49arOvPFRspHegR5X4tJmvrmWMfJ5rE49Ca6XwJ4mLrHpd/JubGIJGPJ/2T/T8q5jVEa2v7q2mPKyMOfrxWR5T2sgbJUZBRwehry1JwlzIo90ZxUbS4rH8O6gdU0mKdiPNHySAf3h/j1/Gr7hgK9OLUldCJfPoqpz70U7ATLUgNVw1PVqQFlTUqGqoapVagC0DTHQE5pqtzTx0pWAQIKULSg09aVgHRKAeauBuKqggVIrcU0rAWN1KGxUAalDUwLAajdUIPvS7sUAS7qXdUIYE07IxQBOrVNGeaqI1WITzQBcB4pCaZupCaQDuKQmmlsU0mmA/NJmmZpM80ASFqbnmmE0m6gCUNS7qiz70oNAEmaXNRZpd1ADyaQn0ppNNzQA7NITTCaTdQA7NNNNJ9aQmgBjCoGHNWG5qNhQBWYVERVlxUDdaYiMj1qJhzUxpu0GgCuy03lassnFRslMCAuQeaPMJHFLImDUZGKAI5pJV5WqUl5OnPT8KvE+vSmMAeozQBxXidIrmUXchEcwGCcffA6cetcdLrsSt5UtrJsHXK8V6jeW8U0p3xqR05FUX021PH2eL/vmuWpSUndDRz/hDUpYLvzdPieS1k4liLqAfcZPBFehpqFrIAHlWNz/BL8h/WsKx0+CGQ+TBCufvfIK1PsdvIm2VFdfTHFXTg4qyA0NqnkYIoqJAERVXAVRgD0FFbCK6n3p6mq+73p6mkBaU09WqsrU8NmgZaDVIGzVUNUgbFAFkGnhqrh6cHosBYDc1IGqqrU8NTsBZBNOBqANxTw1ICbdSFqj3cUm6gCYNSh6g30oagC0jVYhbiqKNVqJqALgbikLGo88Um4GgCQtTc0zNNLUASbqTdUe6jNAEhakJqPdRmmBLmlBNRA0BqAJt1G6ot2aUGkBJmkJpmaaTQA/PNITTS3FMLUAOzQTxTMigmgB2aYTSZpDQA1zULetSmmNTAgPWkJGKeRUbUAKGoJBqInFNL4oAkZQahZKXzcUhlB60CInjqFgRVvINMYCmBjzoQ5qNBuPFaFxFubioxEE+tZ2ASOPYuO/XNO5ApDkUm6tLAP3460VGWFFICEHNSocCqqmpVagCwppwaoM09TQMsK1ODVADTgaALAanhqrg09WoAsA9KeGqANzTt1AFgNTw2KrBqcGoAshhSFqg30FqAJ91KGquHpQ9AFxDVqI8VnRtVqN6ALm7igNUQamljSAnzTSaiDGjdTAkJpN1R5pC1AEpNCtUW6jdQBNmjNRbqN/0oAmDYpS1QBs0u6gCTdijdURakzzQBLupCeKZupCaAHZppNJnmmk0ASUhPFMzSE0AOyabSE0hPFACNUb05zTDQBE1RmpTUb0CInqFiQalNRsKYAHIpfNyeaiamnigCwXB61G4qHcaN9KwDiopjJg0b/Wl3ZoAiK5PSipMe9FAGcpxUqHmoFNPBpAWA1PQ1AG4p4NMCcNTgahBp4agZKDTweKhDZp2aAJg1SA8VXU08GgCXdinB6hBzS5IoAn3Um7nrUQNLmgCUGlBqLNKDQBYVsVYjeqKGp0agC8H4pS1VlanbqAJg9G6od1LuoAl3UbqjDcUZoAfml3VHupM0AS5pM1HmlBoAl3Ypd3pUWaXdQIkyKTNNLUA0DH5oNMzSk+lAATTc0hPNNJoAUmgmmd6MjHFAC7qTdTSaTNADic0wmjNMY4oAU0xqTNITQAw9ajPOakamEUARkVGwqY0xhTEQmmVKwqMigBhzTdxB605qjI5oAf5hoqP8aKQWKmcU9eaiFOBpCJlp4NRAnFOBxQBMppwNQg08NTGTCnA+tQhjUgPFAEgNPzUIalzQMlzTt1Rg0ooAeGp2c1HmlBoAkzRmmZpQc0CJVPNSKarr1qVDQBaU0/NV1NSK1AEoNLmmA04NQMcDS5pmaM0APpCaTNJigB2aBTaAeaBD/el603NANAD/rSk4HFMz65ozQA7PFBOKZmgnigALUhPak7U00AONMJozSE8UALmkyKbmkJoAXNITTc0hNACk+tNzSZpO9AwbrSHkUEZooEMNNIp9IRQBHimMMVKaY45oGQsKYRUpGKYwoAhK0U/HtRQIzh3pRRRSAeelKKKKBMeOlPWiigY8U4UUUALQDzRRTGSCniiigANAPWiigQ6lziiigBwNSIeaKKAJVp69KKKAHdBTl5zRRQMcKXNFFACDk04UUUAI1NFFFAhwozzRRQA4Uh60UUDAHihulFFAho6U09KKKAEJ4FNY0UUDENNoooAQ0hNFFAhooNFFACd6XtRRQA00UUUAM7U00UUDGmmHtRRQA2iiigD/9k=" alt="JR Vélora"></div>
@@ -962,6 +1007,178 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
       });
     });
   };
+})();
+</script>
+
+<!-- ===== JR MOBILE SECTION NAV FIX v33 =====
+     إصلاح نهائي لبطء الانتقال على الهواتف:
+     - حركة تمرير واحدة قصيرة بدل طبقات التمرير المتداخلة.
+     - إلغاء مؤثرات النقر الخاصة بروابط الأقسام والتصنيفات.
+     - الإبقاء على حركة ظهور بيانات القسم، مع تقليل كلفتها وتأخيرها.
+-->
+<style id="jr-mobile-section-fix">
+  /* لا نعرض مؤشرات أو خطوطًا إضافية أثناء النقر على قسم */
+  #jrGoBar,
+  .jr-land-line::after,
+  .jr-ripple,
+  .chip .rip,
+  .chip .sheen {
+    display:none!important;
+    animation:none!important;
+  }
+
+  /* منع مؤثرات النقر القديمة على روابط الأقسام فقط */
+  #links a[href*="#"],
+  .hero a[href*="#"],
+  footer a[href*="#"],
+  .chip {
+    -webkit-tap-highlight-color:transparent;
+  }
+  #links a[href*="#"]:active,
+  .hero a[href*="#"]:active,
+  footer a[href*="#"]:active,
+  .chip.tapped {
+    animation:none!important;
+    transform:none!important;
+    filter:none!important;
+  }
+
+  /* تبقى حركة تعبئة بيانات القسم، لكن بدون blur أو تتابع طويل على الهاتف */
+  @media (max-width:900px),(hover:none) {
+    html.jrfill-on .jrf-el {
+      filter:none!important;
+      transform:translate3d(0,10px,0) scale(.995)!important;
+      transition:opacity .28s ease-out,transform .3s cubic-bezier(.22,.61,.36,1)!important;
+      transition-delay:0ms!important;
+    }
+    html.jrfill-on .jrf-el.jrf-card {
+      transform:translate3d(0,12px,0) scale(.985)!important;
+    }
+    html.jrfill-on .jrf-ttl,
+    html.jrfill-on .jrf-ttl.jrf-in {
+      clip-path:none!important;
+    }
+    html.jrfill-on .jrf-ttl::after {
+      transition-duration:.3s!important;
+      transition-delay:0ms!important;
+    }
+    html.jrfill-on .jrf-sec.jrf-fill::after {
+      animation-duration:.45s!important;
+    }
+    #grid > .card.pop-in {
+      animation-duration:.3s!important;
+      animation-delay:0ms!important;
+    }
+  }
+
+</style>
+<script>
+(function(){
+  "use strict";
+
+  var root = document.documentElement;
+  var activeFrame = 0;
+  var arrivalTimer = 0;
+
+  function prefersReducedMotion(){
+    try { return window.matchMedia("(prefers-reduced-motion:reduce)").matches; }
+    catch(e) { return false; }
+  }
+  function isMobile(){
+    try { return window.matchMedia("(max-width:900px),(hover:none)").matches; }
+    catch(e) { return window.innerWidth < 900; }
+  }
+  function headerHeight(){
+    var header = document.querySelector("header");
+    if(!header) return 0;
+    var cs = window.getComputedStyle(header);
+    return (cs.position === "fixed" || cs.position === "sticky")
+      ? Math.round(header.getBoundingClientRect().height) : 0;
+  }
+  function targetY(el){
+    var y = el.getBoundingClientRect().top +
+      (window.pageYOffset || root.scrollTop || 0) -
+      headerHeight() - 10;
+    var max = Math.max(0, (root.scrollHeight || 0) - window.innerHeight);
+    return Math.max(0, Math.min(Math.round(y), max));
+  }
+  function arrive(el){
+    if(!el) return;
+    el.classList.remove("jr-fast-section-arrival");
+    void el.offsetWidth;
+    el.classList.add("jr-fast-section-arrival");
+    clearTimeout(arrivalTimer);
+    arrivalTimer = setTimeout(function(){
+      el.classList.remove("jr-fast-section-arrival");
+    }, 360);
+  }
+
+  /*
+   * يستبدل طبقة v31 الثقيلة بطبقة واحدة:
+   * لا شريط تقدم، لا مستمعات لمس مؤقتة، ولا انتظار 620–1050ms.
+   * استخدام requestAnimationFrame يعطي تحكمًا ثابتًا ومناسبًا للموبايل.
+   */
+  window.JRScrollTo = function(el){
+    if(!el) return;
+    if(activeFrame) cancelAnimationFrame(activeFrame);
+
+    var from = window.pageYOffset || root.scrollTop || 0;
+    var to = targetY(el);
+    var distance = Math.abs(to - from);
+
+    if(prefersReducedMotion() || distance < 8){
+      window.scrollTo(0, to);
+      arrive(el);
+      return;
+    }
+
+    var mobile = isMobile();
+    var duration = mobile
+      ? Math.min(380, Math.max(210, 170 + distance * .055))
+      : Math.min(680, Math.max(320, 250 + distance * .075));
+    var started = 0;
+    root.classList.add("no-smooth");
+
+    function ease(p){
+      return p < .5
+        ? 4*p*p*p
+        : 1 - Math.pow(-2*p + 2, 3) / 2;
+    }
+    function step(now){
+      if(!started) started = now;
+      var p = Math.min(1, (now - started) / duration);
+      var y = Math.round(from + (to - from) * ease(p));
+      window.scrollTo(0, y);
+      if(p < 1){
+        activeFrame = requestAnimationFrame(step);
+      } else {
+        activeFrame = 0;
+        root.classList.remove("no-smooth");
+        window.scrollTo(0, to);
+        arrive(el);
+      }
+    }
+    activeFrame = requestAnimationFrame(step);
+  };
+
+  /*
+   * عند اختيار تصنيف، نترك حركة عرض المنتجات الأصلية تعمل،
+   * لكن نمنع مؤثرات النقر القديمة ونقصّر أي تأخير للتعبئة.
+   */
+  document.addEventListener("click", function(e){
+    var chip = e.target && e.target.closest ? e.target.closest(".chip[data-cat]") : null;
+    if(chip){
+      chip.classList.remove("tapped");
+      var section = document.getElementById("shop");
+      if(section){
+        setTimeout(function(){
+          section.querySelectorAll(".jrf-el").forEach(function(el){
+            el.style.setProperty("--jrf-d","0ms");
+          });
+        }, 0);
+      }
+    }
+  }, true);
 })();
 </script>
 <script>
@@ -1081,12 +1298,12 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
     <span class="eyebrow">لماذا فيلورا</span>
     <h2>لأن العناية تستحق التفاصيل</h2>
     <div class="cols">
-      <div class="tile"><div class="ic">🌿</div><h3>تركيبات طبيعية</h3><p>مكوّنات مختارة بعناية تدعم روتين العناية اليومي بلطف وبدون قسوة على البشرة والجسم.</p></div>
-      <div class="tile"><div class="ic">🎁</div><h3>عيّنة مجانية</h3><p>مع كل طلب نرسل لكِ عيّنة مجانية لتجربة منتج جديد قبل الالتزام به.</p></div>
-      <div class="tile"><div class="ic">💬</div><h3>استشارة قبل الشراء</h3><p>نساعدكِ في اختيار المنتج الأنسب لهدفكِ ونوع بشرتكِ قبل إتمام الطلب.</p></div>
-      <div class="tile"><div class="ic">🚚</div><h3>توصيل سريع</h3><p>توصيل خلال ٢٤–٤٨ ساعة لجميع المحافظات مع إمكانية الدفع عند الاستلام.</p></div>
-      <div class="tile"><div class="ic">✅</div><h3>منتجات أصلية</h3><p>مصادر موثوقة وتخزين سليم، مع متابعة بعد الاستلام للاطمئنان على تجربتكِ.</p></div>
-      <div class="tile"><div class="ic">📋</div><h3>روتين واضح</h3><p>مع كل منتج إرشادات استخدام مبسّطة لتحصلي على أفضل نتيجة ضمن نمط حياة صحي.</p></div>
+      <div class="tile reveal"><div class="ic">🌿</div><h3>تركيبات طبيعية</h3><p>مكوّنات مختارة بعناية تدعم روتين العناية اليومي بلطف وبدون قسوة على البشرة والجسم.</p></div>
+      <div class="tile reveal"><div class="ic">🎁</div><h3>عيّنة مجانية</h3><p>مع كل طلب نرسل لكِ عيّنة مجانية لتجربة منتج جديد قبل الالتزام به.</p></div>
+      <div class="tile reveal"><div class="ic">💬</div><h3>استشارة قبل الشراء</h3><p>نساعدكِ في اختيار المنتج الأنسب لهدفكِ ونوع بشرتكِ قبل إتمام الطلب.</p></div>
+      <div class="tile reveal"><div class="ic">🚚</div><h3>توصيل سريع</h3><p>توصيل خلال ٢٤–٤٨ ساعة لجميع المحافظات مع إمكانية الدفع عند الاستلام.</p></div>
+      <div class="tile reveal"><div class="ic">✅</div><h3>منتجات أصلية</h3><p>مصادر موثوقة وتخزين سليم، مع متابعة بعد الاستلام للاطمئنان على تجربتكِ.</p></div>
+      <div class="tile reveal"><div class="ic">📋</div><h3>روتين واضح</h3><p>مع كل منتج إرشادات استخدام مبسّطة لتحصلي على أفضل نتيجة ضمن نمط حياة صحي.</p></div>
     </div>
   </div>
 </section>
@@ -1097,10 +1314,10 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
     <span class="eyebrow">كيف تطلبين</span>
     <h2>أربع خطوات فقط</h2>
     <div class="steps">
-      <div class="step"><h3>اختاري منتجاتكِ</h3><p>تصفّحي الأقسام وأضيفي ما يناسبكِ للسلة مع تحديد الكمية.</p></div>
-      <div class="step"><h3>راجعي السلة</h3><p>تأكّدي من الكميات والمجموع، ويمكنكِ استخدام كود الخصم إن توفّر.</p></div>
-      <div class="step"><h3>أكملي بياناتكِ</h3><p>الاسم، رقم الهاتف، المدينة والعنوان — ثم إرسال الطلب عبر واتساب.</p></div>
-      <div class="step"><h3>استلمي طلبكِ</h3><p>نؤكد الطلب معكِ ونشحنه خلال ٢٤–٤٨ ساعة مع عيّنة مجانية.</p></div>
+      <div class="step reveal"><h3>اختاري منتجاتكِ</h3><p>تصفّحي الأقسام وأضيفي ما يناسبكِ للسلة مع تحديد الكمية.</p></div>
+      <div class="step reveal"><h3>راجعي السلة</h3><p>تأكّدي من الكميات والمجموع، ويمكنكِ استخدام كود الخصم إن توفّر.</p></div>
+      <div class="step reveal"><h3>أكملي بياناتكِ</h3><p>الاسم، رقم الهاتف، المدينة والعنوان — ثم إرسال الطلب عبر واتساب.</p></div>
+      <div class="step reveal"><h3>استلمي طلبكِ</h3><p>نؤكد الطلب معكِ ونشحنه خلال ٢٤–٤٨ ساعة مع عيّنة مجانية.</p></div>
     </div>
   </div>
 </section>
@@ -1146,7 +1363,7 @@ html[dir="ltr"] .drawer.open{transform:translate3d(0,var(--dragY,0px),0)}
 <!-- BANNER -->
 <section class="sec">
   <div class="wrap">
-    <div class="banner">
+    <div class="banner reveal">
       <div>
         <h2>مش عارفة تبدأي من وين؟</h2>
         <p>راسلينا وأخبرينا عن هدفكِ وروتينكِ الحالي، ونرشّح لكِ الباقة الأنسب لكِ خطوة بخطوة — بدون أي التزام.</p>
@@ -1415,7 +1632,7 @@ function refreshRow(id){
 }
 function renderReviews(){
   $("#revsGrid").innerHTML = REVIEWS.map(r =>
-    `<div class="rev"><div class="stars">★★★★★</div><p>${r.t}</p><b>${r.n}</b></div>`).join("");
+    `<div class="rev reveal"><div class="stars">★★★★★</div><p>${r.t}</p><b>${r.n}</b></div>`).join("");
 }
 
 /* ====== أنيميشن الإضافة إلى السلة ====== */
@@ -2019,6 +2236,107 @@ $("#yr").textContent = new Date().getFullYear();
 
 chipsHTML(); renderGrid(); animateGrid(); renderReviews(); updateCart(); syncAllQtyBadges();
 
+/* الظهور التدريجي */
+/* ===================================================================
+   محرك الحركة عند التنقل داخل الموقع (Scroll Reveal + هيدر + بارالاكس)
+   =================================================================== */
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  },{threshold:.14, rootMargin:'0px 0px -8% 0px'});
+
+  function tag(el,type,delay){
+    if(el.hasAttribute('data-reveal')) return;
+    el.setAttribute('data-reveal', type||'up');
+    el.classList.add('reveal');
+    if(delay) el.style.transitionDelay = delay.toFixed(2)+'s';
+    if(reduce) el.classList.add('in'); else io.observe(el);
+  }
+
+  function scan(){
+    document.querySelectorAll('.reveal:not(.in)').forEach(function(el){ tag(el,el.getAttribute('data-reveal')||'up'); });
+    document.querySelectorAll('.sec .eyebrow, .sec > .wrap > h2, .sec > .wrap > .lead').forEach(function(el){ tag(el,'up'); });
+    document.querySelectorAll('#grid > .card').forEach(function(el,i){ tag(el,'zoom',(i%4)*0.07); });
+    document.querySelectorAll('#reviews > .rev').forEach(function(el,i){ tag(el,'up',(i%3)*0.09); });
+    document.querySelectorAll('.tile').forEach(function(el,i){ tag(el,'up',(i%3)*0.08); });
+    document.querySelectorAll('.step').forEach(function(el,i){ tag(el,'right',i*0.09); });
+    document.querySelectorAll('.about img').forEach(function(el){ tag(el,'left'); });
+    document.querySelectorAll('.about > div').forEach(function(el){ tag(el,'right'); });
+    document.querySelectorAll('.ct').forEach(function(el,i){ tag(el,'up',i*0.08); });
+    document.querySelectorAll('.banner').forEach(function(el){ tag(el,'blur'); });
+  }
+  scan();
+  ['grid','reviews'].forEach(function(id){
+    var n=document.getElementById(id);
+    if(n) new MutationObserver(scan).observe(n,{childList:true});
+  });
+
+  /* شريط تقدّم القراءة + هيدر متفاعل + بارالاكس الهيرو */
+  var bar=document.getElementById('scrollProgress');
+  var heroArt=document.querySelector('.hero img, .hero .art');
+  var ticking=false;
+
+  /* --- ذاكرة مؤقتة للقياسات: لا نقرأ التخطيط أثناء التمرير إطلاقًا --- */
+  var SECS=[], LINKS=[], docH=1, vh=1, measured=false, lastCur=null, lastScrolled=null, lastBar=-1;
+  var coarse = !!(window.matchMedia && window.matchMedia('(hover:none)').matches);
+
+  function measure(){
+    SECS=[];
+    var nodes=document.querySelectorAll('section[id]');
+    for(var i=0;i<nodes.length;i++){
+      SECS.push({ id:nodes[i].id, top:nodes[i].getBoundingClientRect().top + (window.pageYOffset||0) });
+    }
+    LINKS=[];
+    var as=document.querySelectorAll('#links a');
+    for(var j=0;j<as.length;j++){ LINKS.push({ el:as[j], hash:as[j].getAttribute('href')||'' }); }
+    vh = window.innerHeight || 1;
+    docH = Math.max(1,(document.documentElement.scrollHeight - vh));
+    measured=true;
+  }
+  var remT=null;
+  function remeasure(){ clearTimeout(remT); remT=setTimeout(function(){ measure(); frame(); }, 120); }
+
+  function frame(){
+    ticking=false;
+    if(!measured) measure();
+    var y=window.pageYOffset||document.documentElement.scrollTop||0;
+
+    /* شريط التقدّم: تحويل فقط (لا يسبب إعادة تخطيط) */
+    if(bar){
+      var pr=Math.min(1,Math.max(0,y/docH));
+      if(Math.abs(pr-lastBar)>0.002){ lastBar=pr; bar.style.transform='scaleX('+pr.toFixed(4)+')'; }
+    }
+
+    var sc = y>24;
+    if(sc!==lastScrolled){ lastScrolled=sc; document.body.classList.toggle('scrolled', sc); }
+
+    /* البارالاكس مُعطّل على الموبايل (أغلى تأثير أثناء التمرير) */
+    if(!reduce && !coarse && heroArt && y<vh*1.2){
+      heroArt.style.transform='translate3d(0,'+(y*0.14).toFixed(1)+'px,0)';
+    }
+
+    /* القسم النشط من القياسات المخزَّنة — بدون أي قراءة للتخطيط */
+    var pos=y+140, cur=null;
+    for(var i=0;i<SECS.length;i++){ if(SECS[i].top<=pos) cur=SECS[i].id; }
+    if(cur!==lastCur){
+      lastCur=cur;
+      for(var k=0;k<LINKS.length;k++){
+        LINKS[k].el.classList.toggle('active', !!cur && LINKS[k].hash==='#'+cur);
+      }
+    }
+  }
+  function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(frame); } }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',function(){ remeasure(); onScroll(); },{passive:true});
+  window.addEventListener('orientationchange',remeasure,{passive:true});
+  window.addEventListener('load',remeasure);
+  window.__jrRemeasure = remeasure;
+  measure(); frame();
+})();
+
 /* ===== شاشة الانترو: شريط أبيض يمتلئ بالأخضر + لوجو يدور ===== */
 (function(){
   var el=document.getElementById('intro');
@@ -2604,6 +2922,114 @@ chipsHTML(); renderGrid(); animateGrid(); renderReviews(); updateCart(); syncAll
 </script>
 
 
+<!-- ===== JR ANCHOR NAV v32 — تمرير أصلي سلس وخفيف (موبايل أولًا) ===== -->
+<script>
+(function(){
+  var root=document.documentElement;
+  function reduce(){ try{ return matchMedia("(prefers-reduced-motion:reduce)").matches; }catch(e){ return false; } }
+  function headerH(){
+    var h=document.querySelector("header"); if(!h) return 0;
+    var cs=getComputedStyle(h);
+    if(cs.position!=="sticky"&&cs.position!=="fixed") return 0;
+    return Math.round(h.getBoundingClientRect().height);
+  }
+  function syncPad(){ root.style.setProperty("--jr-head", (headerH()+10)+"px"); }
+  syncPad();
+  window.addEventListener("resize", syncPad, {passive:true});
+  window.addEventListener("orientationchange", function(){ setTimeout(syncPad,180); }, {passive:true});
+
+  function goalFor(el){
+    var max=Math.max(0,(document.documentElement.scrollHeight||0)-window.innerHeight);
+    var y=el.getBoundingClientRect().top+(window.pageYOffset||root.scrollTop||0)-headerH()-10;
+    return Math.max(0,Math.min(Math.round(y),max));
+  }
+  /* تمرير أصلي 100% — يُنفَّذ داخل المتصفح لا داخل JS، فلا يوجد أي تقطيع */
+  function scrollToY(goal){
+    goal=Math.max(0,Math.round(goal));
+    try{ window.scrollTo({top:goal,left:0,behavior:reduce()?"auto":"smooth"}); }
+    catch(e){ window.scrollTo(0,goal); }
+  }
+  function scrollToEl(el){ if(el) scrollToY(goalFor(el)); }
+  window.JRScrollToY=scrollToY;
+  window.JRScrollTo=scrollToEl;
+  window.JRGoalFor=goalFor;
+  /* توافق مع نداءات قديمة */
+  window.JRPrepareArrive=function(){}; window.JRPlayArrive=function(){}; window.JRClearArriveTimers=function(){};
+
+  function closeMenu(){
+    var links=document.getElementById("links");
+    var burger=document.getElementById("burger");
+    var scrim=document.querySelector(".menu-scrim");
+    if(links) links.classList.remove("open");
+    if(scrim) scrim.classList.remove("open");
+    if(burger){ burger.setAttribute("aria-expanded","false"); burger.textContent="\u2630"; }
+    document.body.classList.remove("lock");
+  }
+  function targetFromHash(hash){
+    if(!hash||hash==="#"||hash.length<2) return null;
+    var id=decodeURIComponent(hash.slice(1));
+    return document.getElementById(id)||document.getElementsByName(id)[0]||null;
+  }
+
+  document.addEventListener("click", function(e){
+    var a=e.target&&e.target.closest?e.target.closest('a[href*="#"]'):null;
+    if(!a) return;
+    if(a.target&&a.target!=="_self") return;
+    var href=a.getAttribute("href")||"";
+    if(href.charAt(0)!=="#"){
+      if(a.pathname!==location.pathname||a.host!==location.host) return;
+    }
+    var hash=href.indexOf("#")>=0?href.slice(href.indexOf("#")):"";
+    if(hash==="#top"||hash==="#"){
+      if(hash==="#"&&!a.hash) return;
+      e.preventDefault(); closeMenu();
+      requestAnimationFrame(function(){ scrollToY(0); });
+      return;
+    }
+    var el=targetFromHash(hash);
+    if(!el) return;
+    e.preventDefault();
+    closeMenu();
+    /* إطار واحد فقط حتى يستقر التخطيط بعد إغلاق القائمة */
+    requestAnimationFrame(function(){
+      scrollToEl(el);
+      try{ history.replaceState(null,"",hash); }catch(err){}
+    });
+  }, true);
+
+  window.addEventListener("hashchange", function(){
+    var el=targetFromHash(location.hash);
+    if(el) scrollToEl(el);
+  });
+
+  /* ===== ظهور خفيف جدًا للعناصر: مرة واحدة، بلا blur وبلا تتابع ثقيل ===== */
+  (function(){
+    if(reduce()||!("IntersectionObserver" in window)) return;
+    function init(){
+      var items=[].slice.call(document.querySelectorAll(".reveal:not(.in)"));
+      if(!items.length) return;
+      var io=new IntersectionObserver(function(en){
+        for(var i=0;i<en.length;i++){
+          if(en[i].isIntersecting){
+            var t=en[i].target;
+            t.classList.add("in");
+            t.style.willChange="";
+            io.unobserve(t);
+          }
+        }
+      },{rootMargin:"0px 0px -6% 0px",threshold:0.05});
+      items.forEach(function(k){
+        var r=k.getBoundingClientRect();
+        if(r.top<innerHeight&&r.bottom>0) k.classList.add("in");
+        else io.observe(k);
+      });
+      setTimeout(function(){ items.forEach(function(k){ k.classList.add("in"); }); }, 8000);
+    }
+    if(document.readyState==="complete") setTimeout(init,60);
+    else window.addEventListener("load", function(){ setTimeout(init,60); });
+  })();
+})();
+</script>
 <style id="jr-langfx-css">
 /* ===== انيميشن التبديل بين اللغات ===== */
 #jrLangFX{position:fixed;inset:0;z-index:99999;display:none;pointer-events:none;
@@ -3211,6 +3637,72 @@ body.jr-swapping{filter:blur(7px) saturate(.9);transition:filter .38s ease}
 </script>
 
 
+<!-- ================= JR MOTION / PERFORMANCE LAYER (v16) ================= -->
+<style id="jr-perf-css">
+/* 1) هوامش تمرير صحيحة للأقسام حتى لا يغطيها الهيدر الثابت */
+section[id],main [id],footer[id]{scroll-margin-top:calc(var(--hdr, 74px) + 10px)}
+
+/* 2) لا نُبقي will-change مفعّلًا طوال الوقت (كان يستهلك ذاكرة الرسوم ويسبب التقطيع) */
+.reveal,.hero-slide{will-change:auto}
+html.jr-rv-on .jr-rv{will-change:auto}
+.fly-to-cart{will-change:transform,opacity}
+
+/* 3) تمرير أنعم على iOS + منع سلاسل التمرير المكلفة */
+html{-webkit-text-size-adjust:100%}
+body{overscroll-behavior-y:none}
+.items,.chips,.rv-track,.track{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+/* 4) تخفيف حاد للتأثيرات الغالية على الشاشات اللمسية/الصغيرة */
+@media (max-width:900px), (hover:none){
+  /* الضبابية خلف الهيدر الثابت = أغلى تأثير أثناء التمرير على الهاتف */
+  header{background:rgba(250,246,236,.985);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .hero-promo,.rv-counter,.rv-nav,.rv-close,.rv-mute,.mapmodal{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .ov{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(38,38,31,.55)}
+  .mcart{backdrop-filter:none;-webkit-backdrop-filter:none}
+
+  /* لا مرشّحات blur في الحركات — الأثقل على معالج الرسوميات */
+  .reveal[data-reveal="blur"]{filter:none;transform:translate3d(0,20px,0)}
+  .reveal{transition:opacity .5s cubic-bezier(.22,.61,.36,1),transform .55s cubic-bezier(.22,.61,.36,1)}
+  .reveal[data-reveal="up"]{transform:translate3d(0,22px,0)}
+  .reveal[data-reveal="down"]{transform:translate3d(0,-18px,0)}
+  .reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,22px,0)}
+  .reveal[data-reveal="zoom"]{transform:scale(.97)}
+  #grid.swapping{filter:none;opacity:.35;transform:none}
+  #grid{transition:opacity .2s ease}
+  html.jr-rv-on .jr-rv{transform:translate3d(0,12px,0);transition-duration:.42s!important}
+
+  /* حركة "وصول القسم" كانت تحرّك قسمًا كاملاً أثناء التمرير */
+  .jr-arrive{animation:none!important}
+
+  /* ظلال أخف داخل الشبكات الطويلة */
+  .card{box-shadow:0 6px 18px -12px rgba(62,74,43,.45)}
+}
+
+/* 5) أثناء التمرير النشط: نوقف شريط الإعلان المتحرك فقط (بدون محدّدات عامة) */
+.marquee.jr-pause div{animation-play-state:paused}
+</style>
+<script>
+/* راية "جارٍ التمرير" — سطر واحد خفيف يخدم كل الطبقات أعلاه */
+(function(){
+  var root = document.documentElement, t = null, on = false;
+  var mq = document.querySelector('.marquee');
+  function off(){ on = false; if(mq) mq.classList.remove('jr-pause'); window.__jrScrolling = false; }
+  window.addEventListener('scroll', function(){
+    if(!on){ on = true; if(mq) mq.classList.add('jr-pause'); window.__jrScrolling = true; }
+    clearTimeout(t); t = setTimeout(off, 160);
+  }, {passive:true});
+
+  /* ضبط ارتفاع الهيدر كمتغيّر ليعمل scroll-margin-top بدقة */
+  function hdr(){
+    var h = document.querySelector('header');
+    if(h) root.style.setProperty('--hdr', Math.round(h.getBoundingClientRect().height) + 'px');
+  }
+  hdr();
+  window.addEventListener('load', hdr);
+  window.addEventListener('resize', hdr, {passive:true});
+})();
+</script>
+
 <!-- ================= JR ELEGANCE LAYER (v18) — خطوط أنيقة + انتقالات ناعمة ================= -->
 <style id="jr-v18-css">
 :root{
@@ -3230,11 +3722,44 @@ b,strong,.btn{font-weight:600}
 .btn{letter-spacing:.01em}
 .latin,.brand .latin{font-family:'Cormorant Garamond',Georgia,serif}
 
+/* ===== انتقال الأقسام: أنعم وأهدأ (بدون صدمة) ===== */
+html{scroll-behavior:auto}
+html.jr-rv-on .jr-rv{
+  opacity:.001;transform:translate3d(0,26px,0);
+  transition:opacity 1.05s var(--ease-silk),transform 1.15s var(--ease-silk)}
+html.jr-rv-on .jr-rv.jr-in{opacity:1;transform:none}
+.reveal{transition:opacity 1s var(--ease-silk),transform 1.1s var(--ease-silk),filter .9s var(--ease-silk)}
+
+/* ===== دخول القسم: ترتيب واصطفاف احترافي مثل قسم "من نحن" ===== */
+html.jr-rv-on .jr-arr:not(.jr-in),
+html.jr-rv-on .jr-arr.reveal:not(.in){
+  transition:opacity 1s var(--ease-silk),transform 1.1s var(--ease-silk),filter .9s var(--ease-silk)!important}
+html.jr-rv-on .jr-arr-l:not(.jr-in):not(.in){transform:translate3d(-46px,0,0)!important;opacity:.001!important}
+html.jr-rv-on .jr-arr-r:not(.jr-in):not(.in){transform:translate3d(46px,0,0)!important;opacity:.001!important}
+html.jr-rv-on .jr-arr-u:not(.jr-in):not(.in){transform:translate3d(0,34px,0)!important;opacity:.001!important}
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-arr-l:not(.jr-in):not(.in),
+  html.jr-rv-on .jr-arr-r:not(.jr-in):not(.in){transform:translate3d(0,26px,0)!important}
+}
+.jr-arrive{animation-duration:.9s}
+.jr-ripple{animation-duration:.65s}
+
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-rv{transform:translate3d(0,20px,0);transition-duration:.95s!important}
+  .reveal{transition:opacity .95s var(--ease-silk),transform 1.02s var(--ease-silk)}
+  .reveal[data-reveal="up"]{transform:translate3d(0,24px,0)}
+  .reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,24px,0)}
+  body{font-size:16px;line-height:1.95}
+}
+
 /* ===== قسم "من نحن" يبدأ مباشرة بعد آخر رأي ===== */
 #about{padding-top:clamp(14px,2.4vw,26px)}
 #about .wrap.about{padding-top:0}
 #about .eyebrow{margin-top:0}
 #revs{padding-bottom:clamp(16px,2.6vw,30px)}
+
+@media (prefers-reduced-motion:reduce){
+  html.jr-rv-on .jr-rv{opacity:1!important;transform:none!important;transition:none!important}
 }
 </style>
 
@@ -3272,6 +3797,18 @@ b,strong,.btn{font-weight:600}
   .banner{padding:22px 18px;gap:16px}
   footer{padding-top:34px}
   .fgrid{gap:18px}
+}
+
+/* 3) انتقالات أسرع قليلًا وأكثر انسيابية على الهاتف (سلسة بلا بطء) */
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-rv{
+    transform:translate3d(0,16px,0);
+    transition:opacity .62s var(--ease-silk),transform .68s var(--ease-silk)!important}
+  .reveal{transition:opacity .6s var(--ease-silk),transform .66s var(--ease-silk)!important}
+  .reveal[data-reveal="up"],.reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,18px,0)}
+  .reveal[data-reveal="down"]{transform:translate3d(0,-14px,0)}
+  .reveal[data-reveal="zoom"]{transform:scale(.985)}
+  .links{transition:transform .34s cubic-bezier(.22,.61,.36,1)}
 }
 
 /* 4) راحة اللمس: أهداف نقر أكبر وبدون وميض أزرق */
@@ -3323,220 +3860,418 @@ b,strong,.btn{font-weight:600}
   #about .eyebrow{padding:7px 14px 11px!important;margin-bottom:10px}
 }
 
+/* 2) ظهور العناصر: أسرع وأنظف على الهاتف (بلا تأخر أو تشويش) */
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-rv{
+    transform:translate3d(0,10px,0)!important;
+    transition:opacity .34s ease-out,transform .34s ease-out!important}
+  html.jr-rv-on .jr-rv.jr-in{transform:none!important}
+  .reveal{transition:opacity .32s ease-out,transform .32s ease-out!important}
+  .reveal[data-reveal="up"],.reveal[data-reveal="right"],.reveal[data-reveal="left"]{transform:translate3d(0,10px,0)}
+  .reveal.in,.reveal.is-in,.reveal.show{transform:none!important}
+  .jr-arrive{animation-duration:.35s!important}
+  /* منع أي وميض أو تراكم فلاتر ثقيلة أثناء التمرير */
+  .jr-rv{will-change:auto}
+  .sec,.tile,.rev,.card,.step{backdrop-filter:none!important}
+}
+
+/* =====================================================================
+   ✦ JR CINEMATIC SECTION FILL (v26) — ظهور محتوى الأقسام كأنه يُملأ
+   ===================================================================== */
+html.jrfill-on .jrf-sec{position:relative}
+html.jrfill-on .jrf-el{
+  opacity:0;
+  transform:translate3d(0,30px,0) scale(.985);
+  filter:blur(9px);
+  transition:opacity .78s cubic-bezier(.16,1,.3,1),
+             transform .95s cubic-bezier(.16,1,.3,1),
+             filter .7s ease,
+             clip-path 1.05s cubic-bezier(.16,1,.3,1);
+  transition-delay:var(--jrf-d,0ms);
+  will-change:opacity,transform}
+html.jrfill-on .jrf-el.jrf-in{opacity:1;transform:none;filter:none}
+/* العناوين: كشف بمسح من اليمين لليسار (RTL) + خط ذهبي يُرسم */
+html.jrfill-on .jrf-ttl{clip-path:inset(0 0 0 105%)}
+html.jrfill-on .jrf-ttl.jrf-in{clip-path:inset(0 -25% 0 -2%)}
+html.jrfill-on .jrf-ttl::after{
+  content:"";position:absolute;bottom:-6px;inset-inline-start:0;height:2px;width:0;
+  background:var(--grad-gold,linear-gradient(90deg,#C6A052,#E8D7A8));
+  transition:width 1s cubic-bezier(.16,1,.3,1);transition-delay:calc(var(--jrf-d,0ms) + 260ms)}
+html.jrfill-on .jrf-ttl{position:relative}
+html.jrfill-on .jrf-ttl.jrf-in::after{width:64px}
+/* بطاقات/عناصر الشبكات: إحساس "ملء البيانات" */
+html.jrfill-on .jrf-el.jrf-card{transform:translate3d(0,34px,0) scale(.94)}
+html.jrfill-on .jrf-el.jrf-card::before{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;z-index:3;
+  background:linear-gradient(115deg,transparent 35%,rgba(232,215,168,.28) 50%,transparent 65%);
+  opacity:0;transform:translateX(-120%)}
+html.jrfill-on .jrf-el.jrf-card.jrf-in::before{
+  animation:jrfSheen 1.05s cubic-bezier(.22,.61,.36,1) forwards;
+  animation-delay:calc(var(--jrf-d,0ms) + 120ms)}
+@keyframes jrfSheen{0%{opacity:.9;transform:translateX(-120%)}100%{opacity:0;transform:translateX(120%)}}
+/* خط مسح ضوئي يمر على القسم لحظة تعبئته */
+html.jrfill-on .jrf-sec.jrf-fill::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
+  background:linear-gradient(90deg,transparent 0%,rgba(232,215,168,.14) 45%,rgba(232,215,168,.20) 50%,rgba(232,215,168,.14) 55%,transparent 100%);
+  animation:jrfScan 1.35s cubic-bezier(.22,.61,.36,1) forwards}
+@keyframes jrfScan{0%{transform:translateX(105%);opacity:0}18%{opacity:1}100%{transform:translateX(-105%);opacity:0}}
+@media (max-width:900px),(hover:none){
+  html.jrfill-on .jrf-el{
+    transform:translate3d(0,16px,0) scale(.995);filter:blur(4px);
+    transition:opacity .46s ease-out,transform .5s cubic-bezier(.22,.61,.36,1),filter .4s ease,clip-path .6s cubic-bezier(.22,.61,.36,1)}
+  html.jrfill-on .jrf-el.jrf-card{transform:translate3d(0,20px,0) scale(.97)}
+  html.jrfill-on .jrf-sec.jrf-fill::after{animation-duration:.9s}
+}
+@media (prefers-reduced-motion:reduce){
+  html.jrfill-on .jrf-el{opacity:1!important;transform:none!important;filter:none!important;clip-path:none!important}
+  html.jrfill-on .jrf-sec.jrf-fill::after{display:none}
+}
 </style>
 
-<!-- ===== JR v35 — نظام حركة موحّد: كشف الأقسام + تنقّل سلس ===== -->
-<style id="jr-motion-v35">
-:root{
-  --jr-ease:cubic-bezier(.22,.61,.36,1);
-  --jr-dur:520ms;
-  --jr-shift:14px;
-  --jr-step:64ms;
-}
-@media (max-width:760px){
-  :root{--jr-dur:420ms;--jr-shift:9px;--jr-step:44ms}
-}
+<script>
+/* ===================================================================
+   ✦ JR CINEMATIC SECTION FILL ENGINE (v26)
+   يخفي محتوى كل قسم ثم يعبّئه بتتابع أنيق عند التمرير إليه أو النقر عليه
+   =================================================================== */
+(function(){
+  if(!("IntersectionObserver" in window)) return;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  var root = document.documentElement;
+  var CARD = ".card,.tile,.step,.rev,.ct,.reel,.reel-card,.chip,.banner";
+  var SEL = [
+    ".eyebrow","h2","h3",".lead",".reels-lead",".reels-hint",".toolbar",".empty",
+    ".grid > *",".cols > *",".steps > *",".revs > *",".reels-rail > *",
+    ".banner",".about > img",".about > div > *",".ct",".map",".map-wrap",
+    ".wrap > p",".wrap > .btn","form > *","footer .wrap > div",".fbot"
+  ].join(",");
 
-html{scroll-behavior:auto!important;scroll-padding-top:var(--jr-head,84px)}
-section[id],footer[id]{scroll-margin-top:var(--jr-head,84px)}
-
-/* ===== الحالة الابتدائية: المحتوى مخفي تمامًا قبل الكشف (بلا وميض) ===== */
-html.jr-motion section.sec:not(.jr-shown) > .wrap > *,
-html.jr-motion footer:not(.jr-shown) > .wrap > *{
-  opacity:0;
-  transform:translate3d(0,var(--jr-shift),0);
-}
-
-/* ===== حركة الدخول الموحّدة ===== */
-@keyframes jrIn{
-  from{opacity:0;transform:translate3d(0,var(--jr-shift),0)}
-  to{opacity:1;transform:none}
-}
-html.jr-motion section.sec.jr-shown > .wrap > *,
-html.jr-motion footer.jr-shown > .wrap > *{
-  animation:jrIn var(--jr-dur) var(--jr-ease) both;
-  will-change:opacity,transform;
-}
-html.jr-motion section.sec.jr-shown > .wrap > :nth-child(2),
-html.jr-motion footer.jr-shown > .wrap > :nth-child(2){animation-delay:calc(var(--jr-step) * 1)}
-html.jr-motion section.sec.jr-shown > .wrap > :nth-child(3),
-html.jr-motion footer.jr-shown > .wrap > :nth-child(3){animation-delay:calc(var(--jr-step) * 2)}
-html.jr-motion section.sec.jr-shown > .wrap > :nth-child(4),
-html.jr-motion footer.jr-shown > .wrap > :nth-child(4){animation-delay:calc(var(--jr-step) * 3)}
-html.jr-motion section.sec.jr-shown > .wrap > :nth-child(n+5),
-html.jr-motion footer.jr-shown > .wrap > :nth-child(n+5){animation-delay:calc(var(--jr-step) * 4)}
-
-/* ===== بعد اكتمال الكشف: حالة نهائية ثابتة، بلا أي طبقات أو إعادة تشغيل ===== */
-html.jr-motion section.sec.jr-shown.jr-settled > .wrap > *,
-html.jr-motion footer.jr-shown.jr-settled > .wrap > *{
-  animation:none!important;
-  opacity:1!important;
-  transform:none!important;
-  will-change:auto!important;
-}
-
-@media (max-width:900px),(hover:none){
-  header{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(250,246,236,.985)!important}
-  .hero-promo,.rv-counter,.rv-nav,.rv-close,.rv-mute,.mapmodal,.ov,.mcart{
-    backdrop-filter:none!important;-webkit-backdrop-filter:none!important
+  function claim(el){
+    el.classList.remove("reveal","jr-rv");
+    el.classList.add("in","jr-in");
+    el.removeAttribute("data-reveal");
+    el.style.transitionDelay = "";
   }
-  section,.sec,.card,.tile,.rev,.step,.ct,.banner{will-change:auto}
-}
 
-/* احترام تفضيل تقليل الحركة: لا إخفاء ولا حركة إطلاقًا (لا تُضاف jr-motion أصلًا) */
-@media (prefers-reduced-motion:reduce){
-  html:not(.jr-motion) section.sec > .wrap > *,
-  html:not(.jr-motion) footer > .wrap > *{opacity:1!important;transform:none!important;animation:none!important}
+  function targets(sec){
+    var list = Array.prototype.slice.call(sec.querySelectorAll(SEL));
+    return list.filter(function(el){
+      if(el.closest(".modal,.drawer,#intro,.rv-track,.hero")) return false;
+      var p = el.parentElement;
+      while(p && p !== sec){ if(list.indexOf(p) > -1) return false; p = p.parentElement; }
+      return true;
+    });
+  }
+
+  function prep(sec){
+    var list = targets(sec), added = [];
+    list.forEach(function(el,i){
+      if(el.getAttribute("data-jrf")) return;
+      el.setAttribute("data-jrf","1");
+      claim(el);
+      el.classList.add("jrf-el");
+      if(el.tagName === "H2") el.classList.add("jrf-ttl");
+      if(el.matches(CARD)) el.classList.add("jrf-card");
+      var step = window.innerWidth < 900 ? 45 : 80;
+      el.style.setProperty("--jrf-d", Math.min(i*step, 900) + "ms");
+      added.push(el);
+    });
+    if(sec.classList.contains("jrf-done") && added.length){
+      requestAnimationFrame(function(){
+        added.forEach(function(el){ el.classList.add("jrf-in"); });
+      });
+    }
+  }
+
+  function fill(sec){
+    if(!sec || !sec.classList.contains("jrf-sec")) return;
+    sec.classList.add("jrf-done");
+    if(!sec.getAttribute("data-jrf-scanned")){
+      sec.setAttribute("data-jrf-scanned","1");
+      sec.classList.add("jrf-fill");
+      setTimeout(function(){ sec.classList.remove("jrf-fill"); }, 1600);
+    }
+    sec.querySelectorAll(".jrf-el:not(.jrf-in)").forEach(function(el){ el.classList.add("jrf-in"); });
+  }
+
+  function start(){
+    if(reduce) return;
+    root.classList.add("jrfill-on");
+    var secs = Array.prototype.slice.call(document.querySelectorAll("section, footer")).filter(function(s){
+      return !s.closest(".modal,.drawer") && !s.classList.contains("hero") && s.id !== "top";
+    });
+    secs.forEach(function(s){ s.classList.add("jrf-sec"); prep(s); });
+
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ fill(e.target); io.unobserve(e.target); }
+      });
+    }, {threshold:0.08, rootMargin:"0px 0px -8% 0px"});
+
+    secs.forEach(function(s){
+      var r = s.getBoundingClientRect();
+      if(r.top < innerHeight * 0.92 && r.bottom > 0) setTimeout(function(){ fill(s); }, 120);
+      else io.observe(s);
+    });
+
+    /* النقر على أي رابط قسم يعبّئه فورًا */
+    document.addEventListener("click", function(ev){
+      var a = ev.target && ev.target.closest ? ev.target.closest('a[href*="#"]') : null;
+      if(!a) return;
+      var href = a.getAttribute("href") || "";
+      var i = href.indexOf("#");
+      if(i < 0) return;
+      var id = decodeURIComponent(href.slice(i+1));
+      if(!id) return;
+      var t = document.getElementById(id);
+      if(!t) return;
+      var sec = t.closest("section, footer") || t;
+      setTimeout(function(){ fill(sec); }, 260);
+      setTimeout(function(){ fill(sec); }, 700);
+    }, true);
+
+    /* المحتوى الديناميكي (المنتجات، الآراء، الفيديوهات، الفلاتر) */
+    ["grid","revsGrid","reelsRail","chips"].forEach(function(id){
+      var n = document.getElementById(id);
+      if(!n) return;
+      new MutationObserver(function(){
+        var sec = n.closest("section");
+        if(!sec) return;
+        prep(sec);
+        var r = sec.getBoundingClientRect();
+        if(sec.classList.contains("jrf-done") || (r.top < innerHeight && r.bottom > 0)) fill(sec);
+      }).observe(n, {childList:true});
+    });
+
+    /* أمان: لا يبقى أي محتوى مخفيًا */
+    setTimeout(function(){
+      document.querySelectorAll(".jrf-el:not(.jrf-in)").forEach(function(el){
+        var r = el.getBoundingClientRect();
+        if(r.top < innerHeight * 1.2) el.classList.add("jrf-in");
+      });
+    }, 4000);
+    window.addEventListener("pageshow", function(){
+      setTimeout(function(){
+        document.querySelectorAll("section.jrf-sec, footer.jrf-sec").forEach(function(s){
+          var r = s.getBoundingClientRect();
+          if(r.top < innerHeight && r.bottom > 0) fill(s);
+        });
+      }, 200);
+    });
+  }
+
+  if(document.readyState === "complete") setTimeout(start, 120);
+  else window.addEventListener("load", function(){ setTimeout(start, 120); });
+})();
+</script>
+<style id="jr-smooth-v32">
+/* ===== طبقة الأداء v32: تمرير سلس وخفيف على الموبايل ===== */
+html{scroll-behavior:smooth;scroll-padding-top:var(--jr-head,84px)}
+section,[id]{scroll-margin-top:var(--jr-head,84px)}
+
+/* ظهور خفيف: شفافية + إزاحة بسيطة فقط — بدون blur (أغلى تأثير على الموبايل) */
+.reveal{opacity:0;transition:opacity .42s cubic-bezier(.22,.61,.36,1),transform .42s cubic-bezier(.22,.61,.36,1)}
+.reveal[data-reveal],.reveal[data-reveal="blur"]{filter:none!important;transform:translate3d(0,18px,0)}
+.reveal[data-reveal="zoom"]{transform:scale(.97)}
+.reveal.in{opacity:1;transform:none;filter:none}
+.reveal,.reveal.in{will-change:auto}
+
+/* تعطيل طبقة الإخفاء/التتابع القديمة نهائيًا */
+html .jr-rv,html .jr-arr,html.jr-rv-on .jr-rv,html.jr-rv-on .jr-arr,
+html.jr-rv-on .jr-arr-l,html.jr-rv-on .jr-arr-r,html.jr-rv-on .jr-arr-u{
+  opacity:1!important;transform:none!important;filter:none!important;
+  transition:none!important;animation:none!important;will-change:auto!important;transition-delay:0s!important}
+.jr-arrive{animation:none!important}
+
+@media (max-width:900px){
+  /* الضبابية الحيّة خلف الهيدر مكلفة جدًا أثناء التمرير على الموبايل */
+  header{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(250,246,236,.97)!important}
+  .hero-promo{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .card,.tile,.ct{transition:box-shadow .2s ease,border-color .2s ease}
+  .card .ph img{transition:none}
 }
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1!important;transform:none!important;transition:none!important}
+}
+</style>
+</body>
+</html>
+
+<!-- ===== JR v31 — انتقال أنيق بحركة واحدة متصلة (بلا ارتداد نهائي) + أداء ممتاز على الموبايل ===== -->
+<style>
+#jrGoBar{position:fixed;top:0;left:0;height:2px;width:0;z-index:9999;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,rgba(212,175,55,0),rgba(212,175,55,.95),rgba(255,244,214,.9));
+  box-shadow:0 0 12px rgba(212,175,55,.45);transition:opacity .28s ease}
+#jrGoBar.on{opacity:1}
+/* خط ذهبي هادئ تحت عنوان القسم عند الوصول — بلا أي إزاحة للمحتوى */
+.jr-land-line{position:relative}
+.jr-land-line::after{content:"";position:absolute;right:0;bottom:-8px;height:2px;width:0;
+  background:linear-gradient(90deg,rgba(212,175,55,0),rgba(212,175,55,.9));
+  animation:jrLandLine 1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes jrLandLine{0%{width:0;opacity:0}30%{opacity:1}100%{width:100%;opacity:.9}}
+/* على الموبايل: كشف بسيط وخفيف (بلا blur ولا حركة جانبية) لأداء سلس */
+@media (max-width:900px), (hover:none){
+  html.jr-rv-on .jr-arr:not(.jr-in):not(.in){filter:none!important}
+  html.jr-rv-on .jr-arr-l:not(.jr-in):not(.in),
+  html.jr-rv-on .jr-arr-r:not(.jr-in):not(.in),
+  html.jr-rv-on .jr-arr-u:not(.jr-in):not(.in){transform:translate3d(0,18px,0)!important}
+  html.jr-rv-on .jr-arr{transition:opacity .42s ease-out,transform .42s ease-out!important}
+  .jr-arrive{animation:none!important}
+  .jr-arrive::after{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){#jrGoBar{display:none}.jr-land-line::after{animation:none!important}}
 </style>
 <script>
 (function(){
-  "use strict";
   var root=document.documentElement;
-  var motion=root.classList.contains("jr-motion");
-  window.__jrRevealReady=true;
+  function reduce(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
+  function isMobile(){try{return matchMedia("(max-width:900px), (hover:none)").matches}catch(e){return window.innerWidth<900}}
+  var bar=document.createElement("div");bar.id="jrGoBar";document.body.appendChild(bar);
+  var orig=window.JRScrollTo,busy=0;
 
-  var HEAD=0;
-  function headerHeight(){
-    var h=document.querySelector("header");
-    if(!h) return 0;
-    var p=getComputedStyle(h).position;
-    return (p==="fixed"||p==="sticky") ? Math.round(h.getBoundingClientRect().height) : 0;
+  function headerH(){var h=document.querySelector("header");if(!h)return 0;var cs=getComputedStyle(h);
+    if(cs.position!=="sticky"&&cs.position!=="fixed")return 0;return Math.round(h.getBoundingClientRect().height);}
+  function goalFor(el){var max=Math.max(0,(root.scrollHeight||0)-window.innerHeight);
+    var y=el.getBoundingClientRect().top+(window.pageYOffset||root.scrollTop||0)-headerH()-10;
+    return Math.max(0,Math.min(Math.round(y),max));}
+  function ease(p){return 1-Math.pow(1-p,4);} /* بداية فورية ونهاية ناعمة تتوقف تمامًا */
+
+  function line(el){
+    try{
+      var h=el.querySelector("h2,h3,.sec-title,.title");
+      if(!h)return;
+      h.classList.remove("jr-land-line");void h.offsetWidth;h.classList.add("jr-land-line");
+      setTimeout(function(){h.classList.remove("jr-land-line");},1400);
+    }catch(e){}
   }
-  function syncHeader(){
-    HEAD=headerHeight();
-    root.style.setProperty("--jr-head",(HEAD+10)+"px");
+  function reveal(el){
+    try{ if(window.JRPlayArrive) window.JRPlayArrive(el); }catch(e){}
+    line(el);
   }
-  syncHeader();
 
-  var SECTIONS=[].slice.call(document.querySelectorAll("section.sec, footer"));
-  var io=null;
+  window.JRScrollTo=function(el){
+    if(!el){return;}
+    if(reduce()){ if(orig) orig(el); return; }
+    var id=++busy;
+    var from=window.pageYOffset||root.scrollTop||0;
+    var target=goalFor(el);
+    var total=Math.abs(target-from);
 
-  /* كشف القسم مرة واحدة فقط طوال الجلسة */
-  function reveal(sec){
-    if(!sec||sec.classList.contains("jr-shown")) return;
-    sec.classList.add("jr-shown");
-    if(io){ try{ io.unobserve(sec); }catch(e){} }
-    if(!motion){ sec.classList.add("jr-settled"); return; }
-    setTimeout(function(){ sec.classList.add("jr-settled"); },1200);
-  }
-  function revealAll(){ SECTIONS.forEach(reveal); }
+    /* إخفاء محتوى القسم مرة واحدة قبل بدء الحركة */
+    try{ if(window.JRClearArriveTimers) window.JRClearArriveTimers();
+         if(window.JRPrepareArrive) window.JRPrepareArrive(el); }catch(e){}
 
-  function startObserver(){
-    if(io) return;
-    if(!("IntersectionObserver" in window)){ revealAll(); return; }
-    io=new IntersectionObserver(function(entries){
-      for(var i=0;i<entries.length;i++){
-        if(entries[i].isIntersecting) reveal(entries[i].target);
+    if(total<24){ reveal(el); return; }
+
+    var mob=isMobile();
+    var dur=mob ? Math.min(620,Math.max(380,300+total*0.16))
+                : Math.min(1050,Math.max(620,480+total*0.26));
+
+    bar.classList.add("on");bar.style.width="0%";
+
+    /* أي تفاعل من المستخدم يوقف الحركة فورًا ويترك له التحكم الكامل */
+    var stopped=false;
+    function cancel(){ if(stopped)return; stopped=true; busy++;
+      root.classList.remove("no-smooth");
+      bar.classList.remove("on");bar.style.width="0%";
+      cleanup(); reveal(el); }
+    var evs=["wheel","touchstart","pointerdown","keydown"];
+    function cleanup(){evs.forEach(function(ev){window.removeEventListener(ev,cancel,true);});}
+    evs.forEach(function(ev){window.addEventListener(ev,cancel,{capture:true,passive:true});});
+
+    var t0=null;root.classList.add("no-smooth");
+    /* على الموبايل نكشف المحتوى مع بداية الحركة حتى لا يبدو هناك تأخير */
+    if(mob) setTimeout(function(){ if(id===busy) reveal(el); }, Math.round(dur*0.35));
+
+    requestAnimationFrame(function step(now){
+      if(id!==busy)return;
+      if(t0===null)t0=now;
+      var p=Math.min(1,(now-t0)/dur);
+      /* حركة واحدة متصلة حتى الهدف النهائي بالضبط — لا تمرير إضافي بعدها */
+      window.scrollTo(0,p>=1?target:Math.round(from+(target-from)*ease(p)));
+      bar.style.width=Math.round(p*100)+"%";
+      if(p<1)requestAnimationFrame(step);
+      else{
+        cleanup();
+        root.classList.remove("no-smooth");
+        bar.classList.remove("on");
+        setTimeout(function(){bar.style.width="0%";},300);
+        if(!mob) reveal(el);
       }
-    },{root:null,rootMargin:"0px 0px -12% 0px",threshold:0});
-    SECTIONS.forEach(function(s){
-      if(!s.classList.contains("jr-shown")){ try{ io.observe(s); }catch(e){} }
     });
-  }
-
-  /* لا نبدأ الكشف قبل انتهاء شاشة البداية حتى لا يُهدر الكشف خلف الغطاء */
-  (function whenIntroDone(){
-    var intro=document.getElementById("intro");
-    if(window.__introDone||!intro){ startObserver(); return; }
-    var n=0;
-    var id=setInterval(function(){
-      var el=document.getElementById("intro");
-      if(window.__introDone||!el||el.classList.contains("done")||++n>90){
-        clearInterval(id);
-        startObserver();
-      }
-    },100);
-  })();
-
-  /* ===== تنقّل سلس واحد فقط ===== */
-  var raf=0;
-  function stopTween(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
-  function ease(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
-
-  function goTo(el){
-    if(!el) return;
-    var sec=(el.closest && el.closest("section.sec, footer")) || null;
-    var start=window.pageYOffset||root.scrollTop||0;
-    var maxY=Math.max(0,(document.documentElement.scrollHeight||0)-window.innerHeight);
-    var end=Math.min(maxY,Math.max(0,Math.round(el.getBoundingClientRect().top+start-HEAD-10)));
-    var dist=Math.abs(end-start);
-    stopTween();
-    if(!motion||dist<3){ window.scrollTo(0,end); reveal(sec); return; }
-    var dur=Math.max(320,Math.min(680,280+dist*0.30));
-    var t0=0,done=false;
-    function step(ts){
-      if(!t0) t0=ts;
-      var p=Math.min(1,(ts-t0)/dur);
-      window.scrollTo(0,Math.round(start+(end-start)*ease(p)));
-      if(!done&&p>0.5){ done=true; reveal(sec); }
-      if(p<1) raf=requestAnimationFrame(step);
-      else { raf=0; reveal(sec); }
-    }
-    raf=requestAnimationFrame(step);
-  }
-
-  /* المستخدم دائمًا هو المتحكم: أي تفاعل يوقف الانتقال فورًا */
-  ["wheel","touchstart","pointerdown","keydown"].forEach(function(ev){
-    window.addEventListener(ev,stopTween,{passive:true,capture:true});
-  });
-
-  window.JRScrollTo=goTo;
-  window.JRScrollToY=function(y){
-    stopTween();
-    window.scrollTo(0,Math.max(0,Math.round(y||0)));
   };
-  window.JRGoalFor=function(el){
-    return el ? Math.max(0,Math.round(el.getBoundingClientRect().top+(window.pageYOffset||0)-HEAD-10)) : 0;
-  };
-  window.JRReveal=reveal;
-
-  function targetFromHash(hash){
-    if(!hash||hash==="#") return null;
-    try{ return document.getElementById(decodeURIComponent(hash.slice(1))); }catch(e){ return null; }
-  }
-  function closeMenu(){
-    var links=document.getElementById("links");
-    var burger=document.getElementById("burger");
-    var scrim=document.querySelector(".menu-scrim");
-    if(links) links.classList.remove("open");
-    if(scrim) scrim.classList.remove("open");
-    if(burger){ burger.setAttribute("aria-expanded","false"); burger.textContent="☰"; }
-    var overlayOpen=document.querySelector(".drawer.open,.modal.open,.mapmodal.open,.reels-viewer.open");
-    if(!overlayOpen) document.body.classList.remove("lock");
-  }
-
-  document.addEventListener("click",function(event){
-    var link=event.target&&event.target.closest ? event.target.closest('a[href*="#"]') : null;
-    if(!link||event.defaultPrevented||(link.target&&link.target!=="_self")) return;
-    var href=link.getAttribute("href")||"";
-    if(href.charAt(0)!=="#"&&(link.host!==location.host||link.pathname!==location.pathname)) return;
-    var hash=href.slice(href.indexOf("#"));
-    if(hash==="#"&&!link.hash) return;
-    var target=hash==="#top" ? document.getElementById("top") : targetFromHash(hash);
-    if(!target) return;
-    event.preventDefault();
-    event.stopPropagation();
-    closeMenu();
-    /* إطار واحد بعد إغلاق القائمة: استجابة فورية بلا تنافس بين حركتين */
-    requestAnimationFrame(function(){ goTo(target); });
-    try{ history.replaceState(null,"",hash); }catch(e){}
-  },true);
-
-  window.addEventListener("resize",function(){
-    clearTimeout(syncHeader.t);
-    syncHeader.t=setTimeout(syncHeader,120);
-  },{passive:true});
-  window.addEventListener("orientationchange",function(){ setTimeout(syncHeader,160); },{passive:true});
-
-  /* شبكة أمان: لا يبقى أي قسم مخفيًا مهما حدث */
-  setTimeout(function(){
-    SECTIONS.forEach(function(s){
-      var r=s.getBoundingClientRect();
-      if(r.bottom>0&&r.top<window.innerHeight) reveal(s);
-    });
-  },4000);
 })();
 </script>
-</body>
-</html>
+
+<!-- ===== JR MOBILE SECTION NAV FINAL OVERRIDE v33 ===== -->
+<script>
+(function(){
+  var root=document.documentElement, frame=0;
+  function reduced(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
+  function mobile(){try{return matchMedia("(max-width:900px),(hover:none)").matches}catch(e){return innerWidth<900}}
+  function headerHeight(){
+    var h=document.querySelector("header"); if(!h)return 0;
+    var cs=getComputedStyle(h);
+    return (cs.position==="fixed"||cs.position==="sticky")?Math.round(h.getBoundingClientRect().height):0;
+  }
+  function target(el){
+    var y=el.getBoundingClientRect().top+(pageYOffset||root.scrollTop||0)-headerHeight()-10;
+    return Math.max(0,Math.min(Math.round(y),(root.scrollHeight||0)-innerHeight));
+  }
+  window.JRScrollTo=function(el){
+    if(!el)return;
+    if(frame)cancelAnimationFrame(frame);
+    var from=pageYOffset||root.scrollTop||0, to=target(el), d=Math.abs(to-from);
+    if(reduced()||d<8){scrollTo(0,to);return}
+    var duration=mobile()?Math.min(380,Math.max(210,170+d*.055))
+      :Math.min(680,Math.max(320,250+d*.075)), start=0;
+    root.classList.add("no-smooth");
+    function ease(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2}
+    function step(now){
+      if(!start)start=now;
+      var p=Math.min(1,(now-start)/duration);
+      scrollTo(0,Math.round(from+(to-from)*ease(p)));
+      if(p<1)frame=requestAnimationFrame(step);
+      else{frame=0;root.classList.remove("no-smooth")}
+    }
+    frame=requestAnimationFrame(step);
+  };
+})();
+</script>
+
+<!-- ===== JR v29 — تفعيل الانتقال السينمائي على نقر روابط الأقسام (أولوية عالية) ===== -->
+<script>
+(function(){
+  function reduce(){try{return matchMedia("(prefers-reduced-motion:reduce)").matches}catch(e){return false}}
+  function closeMenu(){
+    var links=document.getElementById("links"),burger=document.getElementById("burger"),
+        scrim=document.querySelector(".menu-scrim");
+    if(links)links.classList.remove("open");
+    if(scrim)scrim.classList.remove("open");
+    if(burger){burger.setAttribute("aria-expanded","false");burger.textContent="☰";}
+    document.body.classList.remove("lock");
+  }
+  /* الاستماع على window في مرحلة الالتقاط: يعمل قبل معالجات document القديمة */
+  window.addEventListener("click", function(e){
+    if(reduce()) return;
+    var a=e.target&&e.target.closest?e.target.closest('a[href*="#"]'):null;
+    if(!a) return;
+    if(a.target&&a.target!=="_self") return;
+    var href=a.getAttribute("href")||"";
+    if(href.charAt(0)!=="#"&&(a.pathname!==location.pathname||a.host!==location.host)) return;
+    var i=href.indexOf("#"); if(i<0) return;
+    var id=decodeURIComponent(href.slice(i+1));
+    var el=id?document.getElementById(id):null;
+    if(!el||typeof window.JRScrollTo!=="function") return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenu();
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        window.JRScrollTo(el);
+        try{history.replaceState(null,"","#"+id);}catch(err){}
+      });
+    });
+  }, true);
+})();
+</script>
