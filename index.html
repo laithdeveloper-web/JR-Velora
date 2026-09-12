@@ -2429,7 +2429,6 @@ document.querySelectorAll("#links a").forEach(a => a.onclick = () => $("#links")
   /* حلقة واحدة دائمة تعتمد على الوقت الفعلي — لا يمكن أن "تضيع" */
   function tick(){
     rafId = null;
-    if(window.__jrScrolling){ rafId = setTimeout(tick, 200); return; }
     if(!document.hidden && !hovering && (now() - last) >= INTERVAL){
       go(i + 1);
     }
@@ -3917,7 +3916,8 @@ body.jr-swapping{filter:blur(7px) saturate(.9);transition:filter .38s ease}
 section[id],main [id],footer[id]{scroll-margin-top:calc(var(--hdr, 74px) + 10px)}
 
 /* 2) لا نُبقي will-change مفعّلًا طوال الوقت (كان يستهلك ذاكرة الرسوم ويسبب التقطيع) */
-.reveal,.hero-slide{will-change:auto}
+.reveal{will-change:auto}
+.hero-slide.active{will-change:opacity,transform}
 html.jr-rv-on .jr-rv{will-change:auto}
 .fly-to-cart{will-change:transform,opacity}
 
@@ -3953,7 +3953,8 @@ body{overscroll-behavior-y:none}
 }
 
 /* 5) أثناء التمرير النشط: نوقف شريط الإعلان المتحرك فقط (بدون محدّدات عامة) */
-.marquee.jr-pause div{animation-play-state:paused}
+/* لا نوقف الشريط أثناء التمرير — يعمل باستمرار */
+.marquee div{animation-play-state:running!important}
 </style>
 <script>
 /* راية "جارٍ التمرير" — سطر واحد خفيف يخدم كل الطبقات أعلاه */
@@ -3961,8 +3962,8 @@ body{overscroll-behavior-y:none}
   var root = document.documentElement, t = null, on = false;
   var mq = document.querySelector('.marquee');
   function off(){ on = false; if(mq) mq.classList.remove('jr-pause'); window.__jrScrolling = false; }
+  off();
   window.addEventListener('scroll', function(){
-    if(!on){ on = true; if(mq) mq.classList.add('jr-pause'); window.__jrScrolling = true; }
     clearTimeout(t); t = setTimeout(off, 160);
   }, {passive:true});
 
